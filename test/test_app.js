@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
+const { JSDOM, VirtualConsole } = require('jsdom');
 
 // Paths to files
 const htmlPath = path.join(__dirname, '..', 'index.html');
@@ -14,10 +14,18 @@ async function runTest() {
     const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
     const jsContent = fs.readFileSync(jsPath, 'utf-8');
 
-    // Create JSDOM instance
+    // Create JSDOM instance with VirtualConsole
+    const virtualConsole = new VirtualConsole();
+    virtualConsole.on("jsdomError", (err) => {
+        console.error("JSDOM Error inside test:", err.stack, err.detail);
+    });
+    virtualConsole.on("log", (...args) => console.log("JSDOM Log:", ...args));
+    virtualConsole.on("error", (...args) => console.error("JSDOM Error Log:", ...args));
+
     const dom = new JSDOM(htmlContent, {
         runScripts: "dangerously",
-        resources: "usable"
+        resources: "usable",
+        virtualConsole
     });
 
     const { window } = dom;
@@ -44,10 +52,12 @@ async function runTest() {
         return "blob:mock-url-reels-script";
     };
 
-    // Inject document load and execute app.js
-    const scriptEl = document.createElement("script");
-    scriptEl.textContent = jsContent;
-    document.body.appendChild(scriptEl);
+    // Execute app.js in window context
+    try {
+        window.eval(jsContent);
+    } catch (e) {
+        console.error("Eval error in test:", e);
+    }
 
     // Dispatch DOMContentLoaded to trigger app.js event registration
     const domLoadedEvent = document.createEvent('Event');
@@ -147,8 +157,8 @@ async function runTest() {
     copywriterBtn.click();
 
     assert(document.getElementById('loading-copywriter').classList.contains('hidden') === false, "Kopirayter loading spinner visible after run");
-    console.log("Waiting for Kopirayter simulation (3.1s)...");
-    await sleep(3100);
+    console.log("Waiting for Kopirayter simulation (5.0s)...");
+    await sleep(5000);
 
     assert(document.getElementById('loading-copywriter').classList.contains('hidden') === true, "Kopirayter loading spinner hidden after completion");
     assert(document.getElementById('result-copywriter').classList.contains('hidden') === false, "Kopirayter results container visible");

@@ -1,0 +1,18 @@
+# Environment variables — API kalitlar (GitHubga YUKLANMASIN!)
+.env
+.env.local
+.env.production
+.env.development
+
+# Vercel
+.vercel
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.user

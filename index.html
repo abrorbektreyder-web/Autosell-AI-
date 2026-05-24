@@ -158,6 +158,47 @@
                         </div>
                     </div>
 
+                    <!-- ── ASSISTANT AI CHAT ─────────────────────────────── -->
+                    <div class="section-block assistant-chat-section">
+                        <div class="assistant-chat-label">
+                            <i data-lucide="message-square"></i> Assistent bilan Muhokama
+                        </div>
+                        <div class="assistant-chat">
+                            <!-- Chat Header -->
+                            <div class="assistant-chat-header">
+                                <div class="assistant-avatar"><i data-lucide="crown"></i></div>
+                                <div class="assistant-info">
+                                    <span class="assistant-name">Shaxsiy Assistent</span>
+                                    <span class="assistant-status" id="asc-status">Groq AI • Tayyor</span>
+                                </div>
+                                <span class="assistant-ai-badge"><i data-lucide="zap"></i> Groq AI</span>
+                            </div>
+
+                            <!-- Suggested prompts -->
+                            <div class="asc-suggestions">
+                                <button class="asc-sug-btn" data-q="Mahsulotim uchun eng yaxshi SMM strategiyasini tavsiya qil">📊 SMM strategiya</button>
+                                <button class="asc-sug-btn" data-q="Agentlarning natijalarini tahlil qil va yaxshilash bo'yicha maslahat ber">🔍 Natijalarni tahlil qil</button>
+                                <button class="asc-sug-btn" data-q="Instagram da eng ko'p ko'rinadigan vaqtlar qachon?">⏰ Posting vaqti</button>
+                                <button class="asc-sug-btn" data-q="Raqobatchilardan ajralib turish uchun qanday yondashuv kerak?">🚀 Raqobat ustunligi</button>
+                            </div>
+
+                            <!-- Messages -->
+                            <div class="assistant-messages" id="asc-messages">
+                                <div class="asc-notice">Assistent bilan istalgan mavzuda muloqot qiling — SMM, strategiya, tahlil va boshqalar.</div>
+                                <div class="asc-bubble ai">
+                                    <span class="asc-sender">👑 Shaxsiy Assistent</span>
+                                    Salom! Men sizning shaxsiy SMM assistentingizman. Mahsulotingiz, marketing strategiyangiz yoki agentlar natijalariga oid istalgan savolni bering — Groq AI yordamida professional maslahat beraman! 🚀
+                                </div>
+                            </div>
+
+                            <!-- Input Bar -->
+                            <form class="assistant-input-bar" id="asc-form">
+                                <input type="text" id="asc-input" placeholder="Assistent bilan muhokama qiling... (masalan: SMM strategiya, tahlil, maslahat)" autocomplete="off">
+                                <button type="submit" id="asc-send-btn"><i data-lucide="send"></i></button>
+                            </form>
+                        </div>
+                    </div>
+
                     <!-- REVIEW & EXPORT (locked initially) -->
                     <div class="export-card locked" id="export-card">
                         <div class="export-head">
