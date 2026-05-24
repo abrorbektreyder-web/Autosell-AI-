@@ -277,8 +277,8 @@
                     <div class="pane-intro designer">
                         <i data-lucide="palette"></i>
                         <div>
-                            <h3>Dizayner Agent</h3>
-                            <p>Photoroom API yordamida mahsulot rasmini premium reklama ko'rinishiga keltiradi.</p>
+                            <h3>Dizayner Agent (Photoroom)</h3>
+                            <p>Photoroom AI yordamida mahsulot fonini tozalaydi va premium savdo dizaynini yaratadi.</p>
                         </div>
                         <span class="agent-badge" id="badge-designer">Kutilmoqda</span>
                     </div>
@@ -286,7 +286,7 @@
                     <div class="task-box" id="task-designer">
                         <div class="task-label"><i data-lucide="clipboard-list"></i> Vazifa Berish</div>
                         <div class="task-input-row">
-                            <textarea class="task-text" id="input-designer" placeholder="Dizaynerga vazifa yozing...">Mahsulot rasmining fonini Photoroom API orqali tozalang va tanlangan dizayn stilida premium reklama rasmi yarating.</textarea>
+                            <textarea class="task-text" id="input-designer" placeholder="Vazifa yozing...">Mahsulot rasmidan fonni ajratib olib, premium va jozibali reklama foni dizaynini qiling.</textarea>
                             <div class="task-img-drop" id="img-drop-designer">
                                 <i data-lucide="image-plus"></i>
                                 <span>Rasm</span>
@@ -301,46 +301,87 @@
 
                     <div class="agent-loading hidden" id="loading-designer">
                         <div class="spinner designer"></div>
-                        <p>Dizayner Photoroom API orqali rasm ustida ishlamoqda...</p>
+                        <p>Dizayner rasm yuklanganligini tekshirib, vizual marketing tahlilini amalga oshirmoqda...</p>
                     </div>
 
                     <div class="result-box hidden" id="result-designer">
-                        <div class="result-label"><i data-lucide="sparkles"></i> Natija — Rasm Dizayni</div>
+                        <div class="result-label"><i data-lucide="sparkles"></i> Vizual Marketing Tahlili (Visual Analyst)</div>
                         <div class="designer-result-layout">
-                            <div class="img-compare">
-                                <div class="compare-wrapper">
-                                    <img class="compare-raw" id="compare-raw" src="https://images.unsplash.com/photo-1577938659054-e0c1f24d1663?w=500&auto=format&fit=crop&q=60" alt="Raw">
-                                    <div class="compare-designed-clip" id="compare-clip">
-                                        <img class="compare-designed" id="compare-designed" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60" alt="Designed">
+                            <!-- CHAP: Rasm Ko'rinishi -->
+                            <div class="designer-image-section">
+                                <!-- Rasm bor holatda -->
+                                <div id="designer-has-image" class="hidden">
+                                    <div class="designer-format-tabs">
+                                        <button class="fmt-tab active" data-ratio="1/1">1:1</button>
+                                        <button class="fmt-tab" data-ratio="4/5">4:5</button>
+                                        <button class="fmt-tab" data-ratio="9/16">9:16</button>
                                     </div>
-                                    <div class="compare-handle" id="compare-handle">
-                                        <div class="handle-line"></div>
-                                        <div class="handle-knob"><i data-lucide="chevrons-left-right"></i></div>
+                                    <div class="designer-img-frame" id="designer-img-frame">
+                                        <img id="designer-preview-img" src="" alt="Post Rasmi">
                                     </div>
                                 </div>
-                                <div class="compare-labels">
-                                    <span>Raw (Asl)</span>
-                                    <span>Designed (Premium)</span>
+
+                                <!-- Rasm yo'q holatda -->
+                                <div id="designer-no-image" class="designer-no-img-box">
+                                    <i data-lucide="image-off"></i>
+                                    <p>Rasm yuklanmadi</p>
+                                    <small>Chap paneldan rasm yuklang, keyin "Start" ni bosing</small>
                                 </div>
                             </div>
+
+                            <!-- O'NG: AI Tahlil + Sozlamalar -->
                             <div class="designer-controls">
-                                <div class="field">
-                                    <label>Rang To'yinishi</label>
-                                    <div class="range-row">
-                                        <input type="range" min="0" max="200" value="100" id="ctrl-saturation">
-                                        <span id="val-saturation">100%</span>
+                                <!-- AI Vizual Brief -->
+                                <div class="rcard-h"><i data-lucide="sparkles"></i> AI Vizual Tahlil</div>
+                                <div id="designer-brief-box">
+                                    <div class="brief-item">
+                                        <span class="brief-label">Rang Palitrasi</span>
+                                        <div class="brief-colors" id="brief-colors">
+                                            <div class="color-dot" style="background:#6C63FF"></div>
+                                            <div class="color-dot" style="background:#FF6B6B"></div>
+                                            <div class="color-dot" style="background:#FFA07A"></div>
+                                        </div>
+                                    </div>
+                                    <div class="brief-item">
+                                        <span class="brief-label">Kayfiyat</span>
+                                        <span class="brief-value" id="brief-mood">—</span>
+                                    </div>
+                                    <div class="brief-item">
+                                        <span class="brief-label">Optimal Format</span>
+                                        <span class="brief-value" id="brief-format">—</span>
+                                    </div>
+                                    <div class="brief-item">
+                                        <span class="brief-label">Font Tavsiyasi</span>
+                                        <span class="brief-value" id="brief-font">—</span>
                                     </div>
                                 </div>
-                                <div class="field">
-                                    <label>Yorqinlik</label>
-                                    <div class="range-row">
-                                        <input type="range" min="50" max="150" value="100" id="ctrl-brightness">
-                                        <span id="val-brightness">100%</span>
-                                    </div>
+
+                                <!-- CSS Filter Sozlamalari -->
+                                <div class="rcard-h" style="margin-top: 12px;">
+                                    <i data-lucide="sliders"></i> Ko'rinish Sozlamalari
                                 </div>
-                                <button class="btn btn-sm full-w" id="download-designed">
-                                    <i data-lucide="download"></i> Rasmni Yuklash
+                                <div class="range-row">
+                                    <span style="font-size: 0.65rem; color: hsl(var(--txt-muted));">Yorqinlik</span>
+                                    <input type="range" id="ctrl-brightness" min="60" max="140" value="100">
+                                    <span id="val-brightness">100%</span>
+                                </div>
+                                <div class="range-row">
+                                    <span style="font-size: 0.65rem; color: hsl(var(--txt-muted));">To'yinish</span>
+                                    <input type="range" id="ctrl-saturation" min="50" max="180" value="100">
+                                    <span id="val-saturation">100%</span>
+                                </div>
+                                <div class="range-row">
+                                    <span style="font-size: 0.65rem; color: hsl(var(--txt-muted));">Kontrast</span>
+                                    <input type="range" id="ctrl-contrast" min="80" max="130" value="100">
+                                    <span id="val-contrast">100%</span>
+                                </div>
+
+                                <!-- Yuklab Olish -->
+                                <button class="btn btn-agent designer-btn" id="download-designed" style="margin-top: 8px; width: 100%;">
+                                    <i data-lucide="download"></i> Rasmni Yuklab Olish
                                 </button>
+                                <!-- Backward compatibility for approved image -->
+                                <img id="approved-image" src="" alt="Tasdiqlangan Rasm" style="display: none;">
                             </div>
                         </div>
                     </div>

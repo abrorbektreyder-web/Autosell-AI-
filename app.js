@@ -42,6 +42,7 @@ async function askGroq(systemPrompt, userPrompt, maxTokens = 600) {
 // ── GLOBAL STATE ──────────────────────────────────────────────────────────
 // reelsScriptText must be global so auto-flow and manual flow share same ref
 let reelsScriptText = '';
+let uploadedImageDataURL = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOMContentLoaded fired inside app.js");
@@ -72,26 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
         designer:   { status: 'idle', data: null },
         copywriter: { status: 'idle', data: null },
         seller:     { status: 'idle', data: null }
-    };
-
-    // Design image themes
-    const themes = {
-        minimalist_studio: {
-            raw: 'https://images.unsplash.com/photo-1577938659054-e0c1f24d1663?w=500&auto=format&fit=crop&q=60',
-            designed: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60'
-        },
-        nature_fresh: {
-            raw: 'https://images.unsplash.com/photo-1577938659054-e0c1f24d1663?w=500&auto=format&fit=crop&q=60',
-            designed: 'https://images.unsplash.com/photo-1518081461904-9d8f136351c2?w=500&auto=format&fit=crop&q=60'
-        },
-        neon_cyberpunk: {
-            raw: 'https://images.unsplash.com/photo-1577938659054-e0c1f24d1663?w=500&auto=format&fit=crop&q=60',
-            designed: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&auto=format&fit=crop&q=60'
-        },
-        luxury_gold: {
-            raw: 'https://images.unsplash.com/photo-1577938659054-e0c1f24d1663?w=500&auto=format&fit=crop&q=60',
-            designed: 'https://images.unsplash.com/photo-1618005198143-d5668e1a7206?w=500&auto=format&fit=crop&q=60'
-        }
     };
 
     // ── Utility ─────────────────────────────────────────────────────────
@@ -215,6 +196,83 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
     }
 
+    // Chat tarixini o'qib olish (Suhbat Contexti)
+    function getChatContext() {
+        const ascMessages = document.getElementById('asc-messages');
+        if (!ascMessages) return '';
+        const bubbles = ascMessages.querySelectorAll('.asc-bubble');
+        let lines = [];
+        bubbles.forEach(b => {
+            const senderEl = b.querySelector('.asc-sender');
+            const senderText = senderEl ? senderEl.textContent.trim() : '';
+            // textContent dan sender qismini olib tashlash
+            const fullText = b.textContent.replace(senderText, '').trim();
+            if (!fullText) return;
+            if (b.classList.contains('user')) {
+                lines.push(`Foydalanuvchi: ${fullText}`);
+            } else if (b.classList.contains('ai')) {
+                lines.push(`Assistent: ${fullText}`);
+            }
+        });
+        if (!lines.length) return '';
+        const context = lines.join('\n');
+        return `\n\n=== ASSISTENT BILAN MUHOKAMALAR (Barcha agentlar buni hisobga olsin) ===\n${context}\n=== MUHOKAMA TUGADI ===\n`;
+    }
+
+    // Chat xabarlar sonini qaytaradi
+    function getChatMessageCount() {
+        const ascMessages = document.getElementById('asc-messages');
+        if (!ascMessages) return 0;
+        return ascMessages.querySelectorAll('.asc-bubble').length;
+    }
+
+    async function parseAndDisplayBrief(visualBrief) {
+        let colors = ['#6C63FF', '#FF6B6B', '#FFA07A'];
+        let mood = 'Energetic';
+        let format = '4:5';
+        let font = 'Montserrat';
+
+        const lines = visualBrief.split('\n');
+        lines.forEach(line => {
+            const upper = line.toUpperCase().trim();
+            if (upper.startsWith('RANG:')) {
+                const val = line.substring(line.indexOf(':') + 1).trim();
+                const hexMatches = val.match(/#[0-9A-Fa-f]{6}/g);
+                if (hexMatches && hexMatches.length > 0) {
+                    colors = hexMatches.slice(0, 3);
+                }
+            } else if (upper.startsWith('KAYFIYAT:')) {
+                mood = line.substring(line.indexOf(':') + 1).trim();
+            } else if (upper.startsWith('FORMAT:')) {
+                format = line.substring(line.indexOf(':') + 1).trim();
+            } else if (upper.startsWith('FONT_TAVSIYA:')) {
+                font = line.substring(line.indexOf(':') + 1).trim();
+            }
+        });
+
+        // Update DOM
+        const colorsContainer = document.getElementById('brief-colors');
+        if (colorsContainer) {
+            colorsContainer.innerHTML = '';
+            colors.forEach(col => {
+                const dot = document.createElement('div');
+                dot.className = 'color-dot';
+                dot.style.background = col;
+                colorsContainer.appendChild(dot);
+            });
+        }
+
+        const moodEl = document.getElementById('brief-mood');
+        const formatEl = document.getElementById('brief-format');
+        const fontEl = document.getElementById('brief-font');
+        
+        if (moodEl) await typeText(moodEl, mood, 15);
+        if (formatEl) await typeText(formatEl, format, 15);
+        if (fontEl) await typeText(fontEl, font, 15);
+
+        return { colors, mood, format, font };
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  AUTO-FLOW PIPELINE ORCHESTRATOR
     // ══════════════════════════════════════════════════════════════════════
@@ -254,6 +312,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const name = getProductName();
         const price = getProductPrice();
+        const chatContext = getChatContext();
+        const chatCount = getChatMessageCount();
+
+        // === CHAT INTEGRATSIYA BILDIRIMI ===
+        // Agar assistent bilan muhokamalar bo'lgan bo'lsa, foydalanuvchiga bildirish
+        if (chatCount > 0) {
+            addLog(`💬 Assistent bilan ${chatCount} ta muhokama xabari aniqlandi — barcha agentlarga uzatilmoqda...`, 'supervisor');
+            // Assistent panelida ham bildirish (to'g'ridan-to'g'ri DOM dan olinadi)
+            const ascMsgBox = document.getElementById('asc-messages');
+            if (ascMsgBox) {
+                const noticeEl = document.createElement('div');
+                noticeEl.className = 'asc-bubble ai asc-pipeline-notice';
+                noticeEl.innerHTML = `<span class="asc-sender">👑 Shaxsiy Assistent</span>✅ <strong>Pipeline boshlandi!</strong> Bizning ${chatCount} ta xabardagi barcha muhokamalarimiz — Marketolog, Dizayner, Kopirayter va Sotuvchi agentlarga uzatildi. Ular muhokamalarimiz asosida ishlamoqda! 🚀`;
+                ascMsgBox.appendChild(noticeEl);
+                ascMsgBox.scrollTop = ascMsgBox.scrollHeight;
+            }
+        } else {
+            addLog('ℹ️ Assistent bilan muhokama topilmadi — standart rejimda ishlamoqda.', 'sys');
+        }
 
         // ── 1-QADAM: MARKETOLOG AGENT ─────────────────────────────────────
         switchTab('marketer');
@@ -275,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const aiResp = await askGroq(
                 `Sen O'zbekistondagi professional SMM marketolog agentsan. Foydalanuvchi mahsulot nomini beradi, sen qisqa va aniq O'zbek tilida javob berasan. Faqat so'ralgan formatda javob ber, boshqa narsa yozma.`,
-                `Mahsulot: "${name}", Narxi: ${price} so'm.
+                `Mahsulot: "${name}", Narxi: ${price} so'm.${chatContext}
 
 Quyidagi formatda javob ber (boshqa hech narsa yozma):
 AUDITORIYA: [2-3 ta aniq auditoriya guruhi, vergul bilan]
@@ -318,7 +395,7 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
         tabMarketer.classList.remove('pipelining');
         await wait(1000);
 
-        // ── 2-QADAM: DIZAYNER AGENT ─────────────────────────────────────
+        // ── 2-QADAM: DIZAYNER AGENT (Visual Analyst) ────────────────────────────
         switchTab('designer');
         const tabDesigner = document.getElementById('tab-designer');
         tabDesigner.classList.add('pipelining');
@@ -331,38 +408,63 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
         loadingDesigner.classList.remove('hidden');
         updateBadge('designer', 'working', 'Ishlamoqda...');
         updateSupervisorCard('designer', 'working', 'Ishlamoqda...');
-        addLog('Dizayner vazifa oldi: Photoroom API fonni tozalamoqda', 'designer');
+        addLog('Dizayner vazifa oldi: Rasm yuklanganligi tekshirilmoqda va vizual marketing tahlili boshlandi...', 'designer');
 
-        const style = styleSelect.value;
-        const t = themes[style] || themes.minimalist_studio;
+        await wait(2000); // 2 soniya loading simulyatsiyasi
 
-        await wait(2500);
+        // 1. Rasmni oladi (global variable dan)
+        const imageToShow = uploadedImageDataURL || null;
 
-        document.getElementById('compare-raw').src = t.raw;
-        document.getElementById('compare-designed').src = t.designed;
-        setComparePosition(0);
+        // 2. Rasmni pane'da ko'rsatadi
+        const designerPreviewImg = document.getElementById('designer-preview-img');
+        if (imageToShow) {
+            if (designerPreviewImg) designerPreviewImg.src = imageToShow;
+            document.getElementById('designer-no-image').classList.add('hidden');
+            document.getElementById('designer-has-image').classList.remove('hidden');
+            
+            // Backward compatibility for approved image
+            const approvedImg = document.getElementById('approved-image');
+            if (approvedImg) approvedImg.src = imageToShow;
+        } else {
+            // Rasm yuklanmagan — ogohlantirish
+            document.getElementById('designer-no-image').classList.remove('hidden');
+            document.getElementById('designer-has-image').classList.add('hidden');
+        }
+
+        // 3. AI Vizual Tahlil
+        addLog('🤖 Groq AI dan vizual marketing tahlili so\'ramoqda...', 'sys');
+        let visualBrief = '';
+        try {
+            visualBrief = await askGroq(
+                `Sen vizual marketing ekspertisan. O'zbek tilida qisqa va aniq javob berasan. Agar foydalanuvchi bilan oldingi muhokamalar bo'lsa, ularni vizual tanlov uchun inobatga ol.`,
+                `Mahsulot: "${name}", Narxi: ${price} so'm.${chatContext}
+Post uchun quyidagi formatda vizual tavsiyalar ber:
+RANG: [3 ta HEX rang, vergul bilan, misol: #FF5733, #C0392B, #2C3E50]
+KAYFIYAT: [bitta so'z: Luxury / Natural / Energetic / Minimal / Bold]
+FORMAT: [bitta format: 1:1 / 4:5 / 9:16]
+FONT_TAVSIYA: [bitta font nomi: Montserrat / Playfair Display / Oswald / Bebas Neue]`,
+                250
+            );
+        } catch(e) {
+            visualBrief = 'RANG: #6C63FF, #FF6B6B, #FFA07A\nKAYFIYAT: Energetic\nFORMAT: 4:5\nFONT_TAVSIYA: Montserrat';
+        }
 
         loadingDesigner.classList.add('hidden');
         resultDesigner.classList.remove('hidden');
 
-        let pos = 0;
-        await new Promise(resolve => {
-            const iv = setInterval(() => {
-                if (pos < 50) {
-                    pos += 2;
-                    setComparePosition(pos);
-                } else {
-                    clearInterval(iv);
-                    resolve();
-                }
-            }, 15);
-        });
+        // Parse and display visual brief
+        const briefData = await parseAndDisplayBrief(visualBrief);
 
+        // 4. agentState saqlanadi
         agentState.designer.status = 'done';
-        agentState.designer.data = { designedSrc: t.designed };
+        agentState.designer.data = {
+            imageSrc: imageToShow,
+            visualBrief: briefData
+        };
+
         updateBadge('designer', 'done', 'Tayyor ✓');
         updateSupervisorCard('designer', 'done', 'Tayyor ✓');
-        addLog('Dizayner premium reklama dizaynini yaratdi.', 'designer');
+        addLog(`Dizayner ishini tugatdi: AI Vizual Tahlili tayyorlandi ✓`, 'designer');
         tabDesigner.classList.remove('pipelining');
         await wait(1000);
 
@@ -385,29 +487,35 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
             ? agentState.marketer.data.hashtags.join(' ')
             : `#${name.toLowerCase().replace(/ /g,'')} #smmuz #onlineuz`;
 
+        const brief = agentState.designer.data?.visualBrief || {};
+        const designBriefStr = brief.mood 
+            ? `\nVisual Brief: Kayfiyat - ${brief.mood}, Ranglar - ${brief.colors.join(', ')}, Format - ${brief.format}, Font - ${brief.font}.`
+            : '';
+
         let captionText, reelsRaw;
         try {
             addLog('🤖 Groq AI dan SMM post matni so\'ramoqda...', 'sys');
             captionText = await askGroq(
                 `Sen O'zbekiston uchun professional SMM kopirayter agentsan. AIDA formulasi asosida Instagram post matni yozasan. Emoji ishlatasan. O'zbek tilida yozasan.`,
                 `Mahsulot: "${name}", Narxi: ${price} so'm.
-Hashtaglar: ${hashStr}
+Hashtaglar: ${hashStr}${chatContext}${designBriefStr}
 
 Instagram uchun hissiy, sotuvchi post matni yoz (AIDA formulasi: Diqqat → Qiziqish → Istak → Harakat). Matn oxiriga hashtaglarni qo'sh.`,
                 700
             );
 
-            addLog('🤖 Groq AI dan Reels ssenariy so\'ramoqda...', 'sys');
+            addLog('🤖 Groq AI dan Pro Reels ssenariy so\'ramoqda...', 'sys');
             reelsRaw = await askGroq(
-                `Sen professional Reels video ssenariy yozuvchisan. O'zbek tilida, qisqa va dinamik 4 ta sahna yozasan.`,
-                `Mahsulot: "${name}", Narxi: ${price} so'm.
+                `Sen professional Video Prodyuser va Rejissorsan. O'zbek tilida eng zo'r, virusli (viral) bo'ladigan Reels video ssenariy va montaj yo'riqnomasi yozasan.`,
+                `Mahsulot: "${name}", Narxi: ${price} so'm.${chatContext}${designBriefStr}
 
-Instagram Reels uchun 4 ta sahna yoz. Har bir sahna: Vaqt (3-5s), Tasvirlanayotgan harakat, Ekrandagi matn. Format:
-1-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"
-2-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"
-3-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"
-4-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"`,
-                400
+Instagram Reels uchun pro darajada 4 ta sahna yoz. Har bir sahna uchun kamera rakursi, montaj effekti (masalan, Zoom In, Glitch, Fast pan) va ekranda chiqadigan yozuv (Matn) ni aniq ko'rsat.
+Format faqat shunday bo'lsin:
+1-Sahna (Xs): [Kamera rakursi va effekt] - [Harakat tasviri] | Matn: "[ekran matni]"
+2-Sahna (Xs): [Kamera rakursi va effekt] - [Harakat tasviri] | Matn: "[ekran matni]"
+3-Sahna (Xs): [Kamera rakursi va effekt] - [Harakat tasviri] | Matn: "[ekran matni]"
+4-Sahna (Xs): [Kamera rakursi va effekt] - [Harakat tasviri] | Matn: "[ekran matni]"`,
+                600
             );
         } catch(e) {
             addLog(`⚠️ AI xatosi: ${e.message}. Standart matn ishlatilmoqda.`, 'sys');
@@ -455,8 +563,9 @@ Instagram Reels uchun 4 ta sahna yoz. Har bir sahna: Vaqt (3-5s), Tasvirlanayotg
         loadingSeller.classList.add('hidden');
         resultSeller.classList.remove('hidden');
 
+        // Sotuvchi agentga chat kontekstini saqlash
         agentState.seller.status = 'done';
-        agentState.seller.data = { active: true };
+        agentState.seller.data = { active: true, chatContext };
         updateBadge('seller', 'done', 'Faol ✓');
         updateSupervisorCard('seller', 'done', 'Tayyor ✓');
         addLog('Sotuvchi agent tayyor: Groq AI DM simulyator faol ✓', 'seller');
@@ -523,6 +632,7 @@ Instagram Reels uchun 4 ta sahna yoz. Har bir sahna: Vaqt (3-5s), Tasvirlanayotg
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
+            uploadedImageDataURL = ev.target.result;
             previewImg.src = ev.target.result;
             imgPlaceholder.classList.add('hidden');
             imgPreview.classList.remove('hidden');
@@ -685,8 +795,6 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
     // ══════════════════════════════════════════════════════════════════════
     //  DIZAYNER AGENT (MANUAL)
     // ══════════════════════════════════════════════════════════════════════
-    let isDragging = false;
-
     document.getElementById('start-designer').addEventListener('click', async () => {
         if (agentState.designer.status === 'working') return;
         agentState.designer.status = 'working';
@@ -701,101 +809,122 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
 
         updateBadge('designer', 'working', 'Ishlamoqda...');
         updateSupervisorCard('designer', 'working', 'Ishlamoqda...');
-        addLog('Dizayner vazifa oldi: Photoroom API fonni tozalamoqda', 'designer');
+        addLog('Dizayner vazifa oldi: Rasm yuklanganligi tekshirilmoqda va vizual marketing tahlili boshlandi...', 'designer');
 
-        const styleName = styleSelect.value;
-        const th = themes[styleName] || themes.minimalist_studio;
+        const name = getProductName();
+        const price = getProductPrice();
 
-        await wait(2500);
+        await wait(2000); // 2 soniya loading simulyatsiyasi
 
-        document.getElementById('compare-raw').src = th.raw;
-        document.getElementById('compare-designed').src = th.designed;
-        setComparePosition(50);
+        // 1. Rasmni oladi
+        const imageToShow = uploadedImageDataURL || null;
+
+        // 2. Rasmni pane'da ko'rsatadi
+        const designerPreviewImg = document.getElementById('designer-preview-img');
+        if (imageToShow) {
+            if (designerPreviewImg) designerPreviewImg.src = imageToShow;
+            document.getElementById('designer-no-image').classList.add('hidden');
+            document.getElementById('designer-has-image').classList.remove('hidden');
+            
+            // Backward compatibility for approved image
+            const approvedImg = document.getElementById('approved-image');
+            if (approvedImg) approvedImg.src = imageToShow;
+        } else {
+            // Rasm yuklanmagan — ogohlantirish
+            document.getElementById('designer-no-image').classList.remove('hidden');
+            document.getElementById('designer-has-image').classList.add('hidden');
+        }
+
+        // 3. AI Vizual Tahlil
+        addLog('🤖 Groq AI dan vizual marketing tahlili so\'ramoqda...', 'sys');
+        let visualBrief = '';
+        try {
+            visualBrief = await askGroq(
+                `Sen vizual marketing ekspertisan. O'zbek tilida qisqa va aniq javob berasan.`,
+                `Mahsulot: "${name}", Narxi: ${price} so'm.
+Post uchun quyidagi formatda vizual tavsiyalar ber:
+RANG: [3 ta HEX rang, vergul bilan, misol: #FF5733, #C0392B, #2C3E50]
+KAYFIYAT: [bitta so'z: Luxury / Natural / Energetic / Minimal / Bold]
+FORMAT: [bitta format: 1:1 / 4:5 / 9:16]
+FONT_TAVSIYA: [bitta font nomi: Montserrat / Playfair Display / Oswald / Bebas Neue]`,
+                200
+            );
+        } catch(e) {
+            visualBrief = 'RANG: #6C63FF, #FF6B6B, #FFA07A\nKAYFIYAT: Energetic\nFORMAT: 4:5\nFONT_TAVSIYA: Montserrat';
+        }
 
         loading.classList.add('hidden');
         result.classList.remove('hidden');
 
-        let pos2 = 0;
-        const iv = setInterval(() => {
-            if (pos2 < 50) { pos2 += 2; setComparePosition(pos2); }
-            else clearInterval(iv);
-        }, 15);
+        // Parse and display visual brief
+        const briefData = await parseAndDisplayBrief(visualBrief);
 
         agentState.designer.status = 'done';
-        agentState.designer.data = { designedSrc: th.designed };
+        agentState.designer.data = {
+            imageSrc: imageToShow,
+            visualBrief: briefData
+        };
+
         updateBadge('designer', 'done', 'Tayyor ✓');
         updateSupervisorCard('designer', 'done', 'Tayyor ✓');
-        addLog(`Dizayner ishini tugatdi: "${styleName}" stilda premium rasm yaratildi`, 'designer');
+        addLog(`Dizayner ishini tugatdi: AI Vizual Tahlili tayyorlandi`, 'designer');
 
         checkAllDone();
     });
 
-    // Slider logic
-    function setComparePosition(pct) {
-        const clamped = Math.max(0, Math.min(100, pct));
-        const handle = document.getElementById('compare-handle');
-        const clip   = document.getElementById('compare-clip');
-        if (handle) handle.style.left = clamped + '%';
-        if (clip)   clip.style.width  = clamped + '%';
+    // Format tabs click listener
+    function initFormatTabs() {
+        document.querySelectorAll('.fmt-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.fmt-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const ratio = btn.dataset.ratio; // "1/1", "4/5", "9/16"
+                const frame = document.getElementById('designer-img-frame');
+                if (frame) {
+                    frame.style.aspectRatio = ratio.replace('/', ' / ');
+                }
+            });
+        });
     }
-
-    const compareHandle  = document.getElementById('compare-handle');
-    const compareWrapper = document.querySelector('.compare-wrapper');
-
-    if (compareHandle && compareWrapper) {
-        compareHandle.addEventListener('mousedown', () => isDragging = true);
-        compareHandle.addEventListener('touchstart', () => isDragging = true, {passive:true});
-        document.addEventListener('mouseup', () => isDragging = false);
-        document.addEventListener('touchend', () => isDragging = false);
-
-        function onMove(e) {
-            if (!isDragging) return;
-            const rect = compareWrapper.getBoundingClientRect();
-            const cx = (e.touches ? e.touches[0].clientX : e.clientX);
-            const pct = ((cx - rect.left) / rect.width) * 100;
-            setComparePosition(pct);
-        }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('touchmove', onMove, {passive:true});
-    }
+    initFormatTabs();
 
     // Filter controls
     const ctrlSat = document.getElementById('ctrl-saturation');
     const ctrlBrt = document.getElementById('ctrl-brightness');
+    const ctrlCnt = document.getElementById('ctrl-contrast');
     const valSat  = document.getElementById('val-saturation');
     const valBrt  = document.getElementById('val-brightness');
-    const designedImg = document.getElementById('compare-designed');
+    const valCnt  = document.getElementById('val-contrast');
+    const designerPreviewImg = document.getElementById('designer-preview-img');
 
     function applyFilters() {
-        if (!designedImg) return;
-        designedImg.style.filter = `saturate(${ctrlSat.value}%) brightness(${ctrlBrt.value}%)`;
-        valSat.textContent = ctrlSat.value + '%';
-        valBrt.textContent = ctrlBrt.value + '%';
+        if (!designerPreviewImg) return;
+        const satVal = ctrlSat ? ctrlSat.value : 100;
+        const brtVal = ctrlBrt ? ctrlBrt.value : 100;
+        const cntVal = ctrlCnt ? ctrlCnt.value : 100;
+        
+        designerPreviewImg.style.filter = `saturate(${satVal}%) brightness(${brtVal}%) contrast(${cntVal}%)`;
+        
+        if (valSat) valSat.textContent = satVal + '%';
+        if (valBrt) valBrt.textContent = brtVal + '%';
+        if (valCnt) valCnt.textContent = cntVal + '%';
     }
     if (ctrlSat) ctrlSat.addEventListener('input', applyFilters);
     if (ctrlBrt) ctrlBrt.addEventListener('input', applyFilters);
+    if (ctrlCnt) ctrlCnt.addEventListener('input', applyFilters);
 
     // Download designed image
-    document.getElementById('download-designed').addEventListener('click', async () => {
-        if (!agentState.designer.data) return;
-        toast('Rasm tayyorlanmoqda...');
-        try {
-            const resp = await fetch(agentState.designer.data.designedSrc);
-            const blob = await resp.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `designed_${getProductName().replace(/ /g,'_').toLowerCase()}.png`;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast('Rasm yuklandi!');
-        } catch (e) {
-            console.error("CORS xatosi, oddiy usulda yuklanmoqda", e);
-            const a = document.createElement('a');
-            a.href = agentState.designer.data.designedSrc;
-            a.download = `designed_${getProductName().replace(/ /g,'_').toLowerCase()}.png`;
-            a.click();
+    document.getElementById('download-designed').addEventListener('click', () => {
+        if (!agentState.designer.data || !agentState.designer.data.imageSrc) {
+            toast('Yuklangan rasm topilmadi!');
+            return;
         }
+        toast('Rasm yuklanmoqda...');
+        const a = document.createElement('a');
+        a.href = agentState.designer.data.imageSrc;
+        a.download = `visual_analyst_${getProductName().replace(/ /g,'_').toLowerCase()}.png`;
+        a.click();
+        toast('Rasm yuklandi!');
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -823,18 +952,23 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
             ? agentState.marketer.data.hashtags.join(' ')
             : `#${name.toLowerCase().replace(/ /g,'')} #smmuz #onlineuz`;
 
+        const brief2 = agentState.designer.data?.visualBrief || {};
+        const designBriefStr2 = brief2.mood 
+            ? `\nVisual Brief: Kayfiyat - ${brief2.mood}, Ranglar - ${brief2.colors.join(', ')}, Format - ${brief2.format}, Font - ${brief2.font}.`
+            : '';
+
         let caption3, reelsRaw2;
         try {
             addLog('🤖 Groq AI dan SMM post matni so\'ramoqda...', 'sys');
             caption3 = await askGroq(
                 `Sen O'zbekiston uchun professional SMM kopirayter agentsan. AIDA formulasi asosida Instagram post matni yozasan. Emoji ishlatasan. O'zbek tilida yozasan.`,
-                `Mahsulot: "${name}", Narxi: ${price} so'm.\nHashtaglar: ${hashStr2}\n\nInstagram uchun hissiy, sotuvchi post matni yoz (AIDA formulasi). Matn oxiriga hashtaglarni qo'sh.`,
+                `Mahsulot: "${name}", Narxi: ${price} so'm.\nHashtaglar: ${hashStr2}${designBriefStr2}\n\nInstagram uchun hissiy, sotuvchi post matni yoz (AIDA formulasi). Matn oxiriga hashtaglarni qo'sh.`,
                 700
             );
             addLog('🤖 Groq AI dan Reels ssenariy so\'ramoqda...', 'sys');
             reelsRaw2 = await askGroq(
                 `Sen professional Reels video ssenariy yozuvchisan. O'zbek tilida, qisqa va dinamik 4 ta sahna yozasan.`,
-                `Mahsulot: "${name}", Narxi: ${price} so'm.\n\nInstagram Reels uchun 4 ta sahna yoz. Format (har bir sahna yangi qatorda):\n1-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"`,
+                `Mahsulot: "${name}", Narxi: ${price} so'm.${designBriefStr2}\n\nInstagram Reels uchun 4 ta sahna yoz. Format (har bir sahna yangi qatorda):\n1-Sahna (Xs): [harakat tasviri] | Matn: "[ekran matni]"`,
                 400
             );
         } catch(e) {
@@ -936,6 +1070,10 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
     async function closerReplyAI(clientText) {
         const name = getProductName();
         const price = getProductPrice();
+        // Assistent bilan muhokamalardan savdo strategiyasini olish
+        const dmChatCtx = (agentState.seller.data && agentState.seller.data.chatContext)
+            ? agentState.seller.data.chatContext
+            : getChatContext();
 
         showTyping();
 
@@ -944,9 +1082,9 @@ HASHTAGLAR: [10 ta o'zbek ijtimoiy tarmoqlari uchun mos hashtag, vergul bilan aj
                 `Sen O'zbekistondagi professional Instagram sotuvchi agentsan. Mahsulot: "${name}", Narxi: ${price} so'm.
 Mijozlarning DM (to'g'ridan-to'g'ri xabar) savollariga qisqa, do'stona va ishontiruvchi O'zbek tilida javob berasan.
 Javob 2-4 jumladan iborat bo'lsin. Emoji ishlatasan. Buyurtma olishga harakat qilasan.
-Agar mijoz raqam bersa, tasdiqlaysan va yetkazib berish haqida gapirasan.`,
-                `Mijoz xabari: "${clientText}"
-
+Agar mijoz raqam bersa, tasdiqlaysan va yetkazib berish haqida gapirasan.
+Agar foydalanuvchi bilan oldingi savdo muhokamasi bo'lsa, shu strategiyani qo'lla.`,
+                `Mijoz xabari: "${clientText}"${dmChatCtx}
 Qisqa, ishontiruvchi va do'stona javob ber. Buyurtmaga undovchi so'z bilan tugat.`,
                 200
             );

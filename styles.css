@@ -252,34 +252,74 @@ h1 {
 .card-body { padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4) }
 
 /* ── Form Fields ────────────────────────────────────────────────────────── */
-.field { display: flex; flex-direction: column; gap: var(--s1) }
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(14, 20, 42, 0.7);
+    border: 1px solid hsla(var(--border), 0.4);
+    border-left: 3px solid hsl(var(--designer));
+    border-radius: var(--r-sm);
+    padding: 10px 14px 12px;
+    transition: border-color var(--fast), box-shadow var(--fast), background var(--fast);
+}
+.field:hover {
+    background: rgba(20, 28, 56, 0.85);
+    border-left-color: hsl(var(--supervisor));
+    box-shadow: 0 0 0 1px hsla(var(--supervisor), 0.15), 0 4px 16px rgba(0,0,0,0.3);
+}
+.field:focus-within {
+    background: rgba(26, 34, 68, 0.95);
+    border-left-color: hsl(var(--copywriter));
+    border-color: hsla(var(--copywriter), 0.45);
+    box-shadow: 0 0 0 2px hsla(var(--copywriter), 0.18), 0 6px 20px rgba(0,0,0,0.35);
+}
 label {
     font-size: .68rem;
-    color: hsl(var(--txt-2));
-    font-weight: 700;
+    color: hsl(var(--designer));
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: .6px;
+    letter-spacing: 1.1px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color var(--fast);
 }
+.field:hover label { color: hsl(var(--supervisor)) }
+.field:focus-within label { color: hsl(var(--copywriter)) }
 input[type="text"],
 input[type="number"],
 select {
-    background: hsla(var(--surface-2),1);
-    border: 1px solid hsla(var(--border),.55);
-    padding: 10px 12px;
-    border-radius: var(--r-sm);
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid hsla(var(--border), 0.5);
+    padding: 6px 4px;
+    border-radius: 0;
     color: hsl(var(--txt));
-    font-size: .82rem;
+    font-size: .88rem;
     font-family: var(--font-b);
+    font-weight: 500;
     outline: none;
-    transition: border-color var(--fast), box-shadow var(--fast);
+    transition: all var(--fast) cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
-    min-height: 44px;
+    min-height: 36px;
+    box-shadow: none;
+    letter-spacing: .2px;
+}
+input[type="text"]:hover,
+input[type="number"]:hover,
+select:hover {
+    border-bottom-color: hsla(var(--supervisor), 0.7);
+    background: transparent;
 }
 input:focus, select:focus {
-    border-color: hsl(var(--supervisor));
-    box-shadow: 0 0 0 3px hsla(var(--supervisor),.15);
+    border-bottom-color: hsl(var(--copywriter));
+    background: transparent;
+    box-shadow: none;
 }
 input:disabled, select:disabled { opacity: .4; cursor: not-allowed }
+select option { background: hsl(220, 28%, 10%); color: hsl(var(--txt)) }
 
 /* ── Image Uploader ─────────────────────────────────────────────────────── */
 .img-uploader {
@@ -1138,40 +1178,120 @@ i.spinner {
 .asc-dot:nth-child(2) { animation-delay: .18s }
 .asc-dot:nth-child(3) { animation-delay: .36s }
 
+/* === Pipeline Bildirimi Stili === */
+.asc-pipeline-notice {
+    align-self: stretch !important;
+    max-width: 100% !important;
+    background: linear-gradient(135deg, hsla(142,76%,36%,.15), hsla(142,76%,36%,.05)) !important;
+    border: 1px solid hsla(142,76%,36%,.4) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    position: relative;
+    overflow: hidden;
+}
+.asc-pipeline-notice::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, hsla(142,76%,36%,.06), transparent);
+    animation: shimmer-scan 2s ease-in-out infinite;
+}
+@keyframes shimmer-scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.asc-pipeline-notice .asc-sender {
+    color: hsl(142,76%,46%) !important;
+}
+.asc-pipeline-notice strong {
+    color: hsl(142,76%,56%);
+}
+
 .assistant-input-bar {
-    display: flex; gap: var(--s2);
-    padding: var(--s2) var(--s3);
-    border-top: 1px solid hsla(var(--supervisor),.2);
-    background: rgba(12,8,30,.9);
+    display: flex; gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    border-top: 1px solid hsla(var(--supervisor),.25);
+    background: linear-gradient(135deg, rgba(8,5,22,.97) 0%, rgba(18,10,44,.97) 100%);
+    backdrop-filter: blur(16px);
     align-items: center;
+    position: relative;
+}
+.assistant-input-bar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--supervisor)), hsl(var(--copywriter)), transparent);
+    opacity: 0.6;
 }
 .assistant-input-bar input {
     flex: 1;
-    background: hsla(var(--supervisor),.07);
-    border: 1px solid hsla(var(--supervisor),.2);
-    padding: 9px 14px; border-radius: 20px;
-    color: hsl(var(--txt));
-    font-size: .8rem; font-family: var(--font-b);
-    outline: none; min-height: 42px;
-    transition: border-color var(--fast), box-shadow var(--fast);
+    background: rgba(30, 18, 65, 0.8);
+    border: 1.5px solid hsla(var(--supervisor), 0.4);
+    padding: 11px 20px;
+    border-radius: 28px;
+    color: #f0eaff;
+    font-size: .84rem;
+    font-family: var(--font-b);
+    font-weight: 500;
+    letter-spacing: .2px;
+    outline: none;
+    min-height: 44px;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        inset 0 1px 3px rgba(0,0,0,0.5),
+        0 0 0 0 hsla(var(--supervisor), 0),
+        0 2px 12px rgba(0,0,0,0.3);
+    caret-color: hsl(var(--copywriter));
 }
-.assistant-input-bar input::placeholder { color: hsl(var(--txt-muted)) }
+.assistant-input-bar input::placeholder {
+    color: hsla(var(--txt), 0.38);
+    font-style: italic;
+    font-size: .8rem;
+}
+.assistant-input-bar input:hover {
+    border-color: hsla(var(--supervisor), 0.7);
+    background: rgba(38, 24, 82, 0.88);
+    box-shadow:
+        inset 0 1px 3px rgba(0,0,0,0.4),
+        0 0 0 3px hsla(var(--supervisor), 0.1),
+        0 4px 20px hsla(var(--supervisor), 0.15);
+}
 .assistant-input-bar input:focus {
-    border-color: hsl(var(--supervisor));
-    box-shadow: 0 0 0 3px hsla(var(--supervisor),.15);
+    border-color: hsl(var(--copywriter));
+    background: rgba(46, 28, 96, 0.92);
+    box-shadow:
+        inset 0 1px 2px rgba(0,0,0,0.5),
+        0 0 0 3px hsla(var(--copywriter), 0.2),
+        0 0 32px hsla(var(--supervisor), 0.35);
+    color: #fff;
 }
 .assistant-input-bar button {
-    background: linear-gradient(135deg, hsl(var(--supervisor)), hsl(var(--copywriter)));
-    border: none; color: #fff;
-    width: 42px; height: 42px; border-radius: 50%;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: transform var(--fast), box-shadow var(--fast);
+    background: linear-gradient(135deg, hsl(var(--supervisor)) 0%, hsl(var(--copywriter)) 100%);
+    border: none;
+    color: #fff;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform var(--fast), box-shadow var(--fast), filter var(--fast);
     flex-shrink: 0;
-    box-shadow: 0 3px 14px hsla(var(--supervisor),.45);
+    box-shadow: 0 4px 18px hsla(var(--supervisor),.5), 0 1px 4px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
 }
-.assistant-input-bar button:hover { transform: scale(1.12); box-shadow: 0 0 22px hsla(var(--supervisor),.7) }
-.assistant-input-bar button:disabled { opacity: .5; transform: none; cursor: not-allowed }
-.assistant-input-bar button i { width: 16px; height: 16px }
+.assistant-input-bar button::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 60%);
+    border-radius: 50%;
+}
+.assistant-input-bar button:hover {
+    transform: scale(1.13);
+    box-shadow: 0 0 28px hsla(var(--copywriter),.75), 0 0 12px hsla(var(--supervisor),.5);
+    filter: brightness(1.1);
+}
+.assistant-input-bar button:disabled { opacity: .45; transform: none; cursor: not-allowed; filter: none }
+.assistant-input-bar button i { width: 16px; height: 16px; position: relative; z-index: 1 }
 
 /* Suggested prompts */
 .asc-suggestions {
@@ -1262,3 +1382,55 @@ i.spinner {
 @media(prefers-reduced-motion:reduce) {
     *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important }
 }
+
+/* ── Visual Analyst Uslublari (TZ_2) ────────────────────────────────────── */
+
+/* Designer Image Frame — format ratio ga mos */
+.designer-img-frame {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* default — fmt-tab bilan o'zgaradi */
+    overflow: hidden;
+    border-radius: var(--r-md);
+    border: 2px solid hsla(var(--designer), 0.3);
+    background: rgba(0,0,0,0.3);
+    transition: aspect-ratio var(--med);
+}
+.designer-img-frame img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: filter var(--med);
+}
+
+/* Format tab buttons */
+.designer-format-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.fmt-tab {
+    flex: 1; padding: 5px; border-radius: 6px;
+    background: hsla(var(--designer), 0.1);
+    border: 1px solid hsla(var(--designer), 0.25);
+    color: hsl(var(--designer));
+    font-size: .7rem; font-weight: 700; cursor: pointer;
+    transition: all var(--fast);
+}
+.fmt-tab.active, .fmt-tab:hover {
+    background: hsl(var(--designer));
+    color: #000;
+}
+
+/* AI Brief box */
+.brief-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid hsla(var(--border),.2); }
+.brief-label { font-size: .68rem; color: hsl(var(--txt-3)); text-transform: uppercase; letter-spacing: .8px; }
+.brief-value { font-size: .78rem; color: hsl(var(--txt)); font-weight: 600; }
+.brief-colors { display: flex; gap: 4px; }
+.color-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); }
+
+/* No image state */
+.designer-no-img-box {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 40px 20px;
+    border: 2px dashed hsla(var(--designer), 0.3);
+    border-radius: var(--r-md);
+    color: hsl(var(--txt-3));
+    background: rgba(0,0,0,0.2);
+}
+.designer-no-img-box i { width: 32px; height: 32px; color: hsla(var(--designer), 0.5); }
+
