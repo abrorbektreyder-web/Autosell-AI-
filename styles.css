@@ -1365,19 +1365,181 @@ i.spinner {
 ::-webkit-scrollbar-thumb { background: hsla(var(--border),.45); border-radius: 4px }
 ::-webkit-scrollbar-thumb:hover { background: hsla(var(--border),.75) }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
-@media(max-width:1060px) { .status-grid { grid-template-columns: repeat(2,1fr) } }
-@media(max-width:640px) {
-    html { font-size: 14px }
-    body { padding: var(--s3) }
-    .tabs-bar { gap: var(--s1); padding: var(--s2) var(--s3) }
-    .tab { padding: 7px 12px; font-size: .72rem }
-    .compare-wrapper { height: 210px }
-    .panes { padding: var(--s3) }
-    .result-grid-2 { grid-template-columns: 1fr }
-    .copy-result-layout { grid-template-columns: 1fr }
-    .designer-result-layout { grid-template-columns: 1fr }
-    .status-grid { grid-template-columns: repeat(2,1fr) }
+/* ── Responsive & Mobile UI/UX Pro Max ───────────────────────────────────── */
+@media (max-width: 1060px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+    .status-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    /* Prevent annoying iOS auto-zoom by enforcing 16px font-size on form inputs */
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea,
+    .task-text,
+    .caption-edit,
+    .assistant-input-bar input,
+    .dm-input-bar input {
+        font-size: 16px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    html {
+        font-size: 13.5px;
+    }
+    body {
+        padding: var(--s3) var(--s2);
+    }
+    
+    /* Elegant vertically stacked header */
+    .app-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--s4);
+        padding-bottom: var(--s4);
+    }
+    .header-left {
+        flex-direction: column;
+        gap: var(--s2);
+    }
+    .header-right {
+        justify-content: center;
+        width: 100%;
+    }
+    .status-chip {
+        flex: 1;
+        justify-content: center;
+        font-size: 0.7rem;
+        padding: 8px 12px;
+    }
+    
+    /* Sleek touch-scroll tabs bar without scrollbars */
+    .tabs-bar {
+        gap: var(--s1);
+        padding: var(--s2) var(--s2);
+        scrollbar-width: none; /* Hide scrollbar Firefox */
+    }
+    .tabs-bar::-webkit-scrollbar {
+        display: none; /* Hide scrollbar Chrome/Safari */
+    }
+    .tab {
+        padding: 8px 12px;
+        font-size: 0.72rem;
+        min-height: 36px;
+    }
+    
+    .panes {
+        padding: var(--s3);
+    }
+    
+    /* Beautiful horizontal cards on mobile for high density and modern look */
+    .status-grid {
+        grid-template-columns: 1fr !important;
+        gap: var(--s2);
+    }
+    .status-card {
+        flex-direction: row !important;
+        align-items: center !important;
+        text-align: left !important;
+        padding: var(--s3) !important;
+        gap: var(--s3) !important;
+        width: 100%;
+    }
+    .status-card .sc-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 8px !important;
+        flex-shrink: 0;
+    }
+    .status-card .sc-icon i {
+        width: 15px !important;
+        height: 15px !important;
+    }
+    .status-card .sc-state {
+        margin-left: auto !important;
+        font-size: 0.62rem !important;
+    }
+    
+    /* Compact media uploaders */
+    .img-uploader {
+        min-height: 140px;
+    }
+    .img-placeholder {
+        padding: var(--s3);
+    }
+    .img-placeholder i {
+        width: 24px;
+        height: 24px;
+    }
+    
+    /* Result views collapse */
+    .result-grid-2 {
+        grid-template-columns: 1fr;
+    }
+    .copy-result-layout {
+        grid-template-columns: 1fr;
+    }
+    .designer-result-layout {
+        grid-template-columns: 1fr;
+    }
+    .compare-wrapper {
+        height: 220px;
+    }
+    
+    /* Visual Analyst Layout */
+    .designer-result-layout {
+        gap: var(--s3);
+    }
+}
+
+@media (max-width: 480px) {
+    html {
+        font-size: 13px;
+    }
+    body {
+        padding: var(--s2) var(--s2);
+    }
+    
+    /* Tighter, application-like radius on mobile */
+    .card {
+        border-radius: var(--r-md);
+    }
+    
+    /* Quick buttons wrapping and layout */
+    .quick-btns {
+        gap: 6px;
+    }
+    .qbtn {
+        padding: 5px 10px;
+        font-size: 0.7rem;
+        min-height: 30px;
+    }
+    
+    /* Action Button heights for easy taps */
+    .btn-global-start {
+        min-height: 48px;
+        font-size: 0.9rem;
+    }
+    
+    /* Chat bubbles compact */
+    .asc-bubble, .dm-bubble {
+        max-width: 90%;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+    }
+    
+    /* Activity Log styling */
+    .log-box {
+        max-height: 130px;
+        font-size: 0.78rem;
+    }
 }
 @media(prefers-reduced-motion:reduce) {
     *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important }
