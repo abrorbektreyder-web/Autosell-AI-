@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const panes      = document.querySelectorAll('.pane');
     const logBox     = document.getElementById('log-box');
     const exportCard = document.getElementById('export-card');
+    const btnGlobalStart = document.getElementById('btn-global-start');
 
     // Product inputs
     const prodName   = document.getElementById('product-name');
@@ -75,6 +76,309 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Typewriter Helper Functions ─────────────────────────────────────
+    function typeText(element, text, speed = 12) {
+        return new Promise(resolve => {
+            element.innerHTML = '';
+            element.classList.add('typewriter-cursor');
+            let i = 0;
+            function nextChar() {
+                if (i < text.length) {
+                    const char = text.charAt(i);
+                    if (char === '\n') {
+                        element.innerHTML += '<br>';
+                    } else {
+                        element.innerHTML += char;
+                    }
+                    i++;
+                    setTimeout(nextChar, speed);
+                } else {
+                    element.classList.remove('typewriter-cursor');
+                    resolve();
+                }
+            }
+            nextChar();
+        });
+    }
+
+    function typeTextarea(textarea, text, speed = 8) {
+        return new Promise(resolve => {
+            textarea.value = '';
+            textarea.focus();
+            let i = 0;
+            function nextChar() {
+                if (i < text.length) {
+                    textarea.value += text.charAt(i);
+                    textarea.scrollTop = textarea.scrollHeight;
+                    i++;
+                    setTimeout(nextChar, speed);
+                } else {
+                    resolve();
+                }
+            }
+            nextChar();
+        });
+    }
+
+    async function typeHashtags(element, hashtags) {
+        element.innerHTML = '';
+        for (const tag of hashtags) {
+            const span = document.createElement('span');
+            span.className = 'htag';
+            element.appendChild(span);
+            await typeText(span, tag, 15);
+            await wait(100);
+        }
+    }
+
+    async function typeReels(element, scenes) {
+        element.innerHTML = '';
+        for (const s of scenes) {
+            const card = document.createElement('div');
+            card.className = 'reel-card';
+            card.innerHTML = `
+                <span class="reel-num">${s.num}</span>
+                <p class="reel-desc"></p>
+                <span class="reel-overlay hidden"><i data-lucide="type"></i> Matn: ${s.text}</span>
+            `;
+            element.appendChild(card);
+            lucide.createIcons();
+            
+            const descEl = card.querySelector('.reel-desc');
+            await typeText(descEl, s.desc, 12);
+            
+            const overlay = card.querySelector('.reel-overlay');
+            overlay.classList.remove('hidden');
+            await wait(150);
+        }
+    }
+
+    // ── Auto-Flow Pipeline Orchestrator ─────────────────────────────────
+    async function runGlobalPipeline() {
+        logBox.innerHTML = '';
+        addLog('🚀 Multi-Agent Auto-Flow pipeline boshlandi...', 'sys');
+        
+        exportCard.classList.add('locked');
+        exportCard.classList.remove('unlocked');
+        
+        ['marketer', 'designer', 'copywriter', 'seller'].forEach(a => {
+            agentState[a].status = 'idle';
+            agentState[a].data = null;
+            updateSupervisorCard(a, 'idle', 'Kutilmoqda');
+            updateBadge(a, 'idle', 'Kutilmoqda');
+            
+            const res = document.getElementById(`result-${a}`);
+            const task = document.getElementById(`task-${a}`);
+            const load = document.getElementById(`loading-${a}`);
+            if (res) res.classList.add('hidden');
+            if (task) task.classList.remove('hidden');
+            if (load) load.classList.add('hidden');
+        });
+
+        // Disable input elements
+        prodName.disabled = true;
+        prodPrice.disabled = true;
+        styleSelect.disabled = true;
+        btnGlobalStart.disabled = true;
+        btnGlobalStart.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> Oqim Ishlamoqda...';
+        lucide.createIcons();
+
+        // ── 1-QADAM: MARKETOLOG AGENT ───────────────────────────────────────
+        switchTab('marketer');
+        const tabMarketer = document.getElementById('tab-marketer');
+        tabMarketer.classList.add('pipelining');
+        
+        const taskMarketer = document.getElementById('task-marketer');
+        const loadingMarketer = document.getElementById('loading-marketer');
+        const resultMarketer = document.getElementById('result-marketer');
+
+        taskMarketer.classList.add('hidden');
+        loadingMarketer.classList.remove('hidden');
+        updateBadge('marketer', 'working', 'Ishlamoqda...');
+        updateSupervisorCard('marketer', 'working', 'Ishlamoqda...');
+        addLog(`Marketolog vazifa oldi: Bozor tahlili boshlandi`, 'marketer');
+
+        await wait(2200);
+
+        const name = getProductName();
+        const price = getProductPrice();
+        const audience = `Yosh sayohatchilar (18-35 yosh), sport faollari, ofis xodimlari va sog'lom turmush tarziga rioya qiluvchi ayollar va erkaklar.`;
+        const triggers = `24 soat harorat saqlash kafolati, LCD sensorli displey, ekologik toza material, bepul yetkazib berish.`;
+        const hashtags = [`#${name.toLowerCase().replace(/ /g,'')}`, '#termosuz', '#smmshop', '#onlineuz', '#tashkent', '#aktivuz', '#sportuz', '#sovg\'a', '#trenduz'];
+
+        agentState.marketer.data = { audience, triggers, hashtags };
+
+        loadingMarketer.classList.add('hidden');
+        resultMarketer.classList.remove('hidden');
+
+        await Promise.all([
+            typeText(document.getElementById('r-audience'), audience, 10),
+            typeText(document.getElementById('r-triggers'), triggers, 10),
+            typeHashtags(document.getElementById('r-hashtags'), hashtags)
+        ]);
+
+        agentState.marketer.status = 'done';
+        updateBadge('marketer', 'done', 'Tayyor ✓');
+        updateSupervisorCard('marketer', 'done', 'Tayyor ✓');
+        addLog(`Marketolog tahlili yakunlandi.`, 'marketer');
+        tabMarketer.classList.remove('pipelining');
+        await wait(1200);
+
+        // ── 2-QADAM: DIZAYNER AGENT ─────────────────────────────────────────
+        switchTab('designer');
+        const tabDesigner = document.getElementById('tab-designer');
+        tabDesigner.classList.add('pipelining');
+
+        const taskDesigner = document.getElementById('task-designer');
+        const loadingDesigner = document.getElementById('loading-designer');
+        const resultDesigner = document.getElementById('result-designer');
+
+        taskDesigner.classList.add('hidden');
+        loadingDesigner.classList.remove('hidden');
+        updateBadge('designer', 'working', 'Ishlamoqda...');
+        updateSupervisorCard('designer', 'working', 'Ishlamoqda...');
+        addLog(`Dizayner vazifa oldi: Photoroom API fonni tozalamoqda`, 'designer');
+
+        const style = styleSelect.value;
+        const t = themes[style] || themes.minimalist_studio;
+
+        await wait(2500);
+
+        document.getElementById('compare-raw').src = t.raw;
+        document.getElementById('compare-designed').src = t.designed;
+        setComparePosition(0);
+
+        loadingDesigner.classList.add('hidden');
+        resultDesigner.classList.remove('hidden');
+
+        let pos = 0;
+        await new Promise(resolve => {
+            const iv = setInterval(() => {
+                if (pos < 50) {
+                    pos += 2;
+                    setComparePosition(pos);
+                } else {
+                    clearInterval(iv);
+                    resolve();
+                }
+            }, 15);
+        });
+
+        agentState.designer.status = 'done';
+        agentState.designer.data = { designedSrc: t.designed };
+        updateBadge('designer', 'done', 'Tayyor ✓');
+        updateSupervisorCard('designer', 'done', 'Tayyor ✓');
+        addLog(`Dizayner premium reklama dizaynini yaratdi.`, 'designer');
+        tabDesigner.classList.remove('pipelining');
+        await wait(1200);
+
+        // ── 3-QADAM: KOPIRAYTER AGENT ───────────────────────────────────────
+        switchTab('copywriter');
+        const tabCopywriter = document.getElementById('tab-copywriter');
+        tabCopywriter.classList.add('pipelining');
+
+        const taskCopywriter = document.getElementById('task-copywriter');
+        const loadingCopywriter = document.getElementById('loading-copywriter');
+        const resultCopywriter = document.getElementById('result-copywriter');
+
+        taskCopywriter.classList.add('hidden');
+        loadingCopywriter.classList.remove('hidden');
+        updateBadge('copywriter', 'working', 'Ishlamoqda...');
+        updateSupervisorCard('copywriter', 'working', 'Ishlamoqda...');
+        addLog(`Kopirayter vazifa oldi: AIDA post va Reels ssenariysi yozilmoqda`, 'copywriter');
+
+        const hashStr = hashtags.join(' ');
+        const caption =
+`Muzdek suv yoki issiq choy har doim yoningizda bo'lishini xohlaysizmi?
+
+Yorqin va zamonaviy ${name} bilan kun davomida optimal harorat kafolatlanadi! Uni ofisda, sayohatda yoki mashg'ulotlarda o'zingiz bilan olib yuring.
+
+🌟 Afzalliklari:
+• Haroratni 24 soat davomida saqlab beradi
+• LCD sensorli displey orqali suv issiqligini ko'rish
+• Zanglamaydigan, mustahkam va ekologik toza material
+
+🎁 Hoziroq buyurtma bering va butun O'zbekiston bo'ylab mutlaqo BEPUL yetkazib berish xizmatiga ega bo'ling! Narxi: ${price} so'm
+
+👇 Xarid qilish uchun izohda "+" qoldiring yoki Direct'ga yozing!
+
+${hashStr}`;
+
+        reelsScriptText =
+`🎬 Reels Slayd-shou Ssenariysi — ${name}
+
+1-Sahna (3s): Termos yuzidagi sensorli displeyga bosib haroratni ko'rsatish.
+Matn: "Buni bilarmidingiz?"
+
+2-Sahna (4s): Termosga suv va muz bo'laklari solinishi.
+Matn: "24 soat davomida muzdek saqlaydi!"
+
+3-Sahna (3s): Termos qutisini ochish (unboxing) jarayoni.
+Matn: "Premium sifat va qulaylik"
+
+4-Sahna (3s): Bepul yetkazib berish kafolati ko'rinadi.
+Matn: "Narxi: ${price} so'm. Direct'ga yozing!"`;
+
+        const scenes = [
+            { num:'1-Sahna (3s)', desc:'Termos sensorli displeyga bosib haroratni ko\'rsatish.', text:'"Buni bilarmidingiz?"' },
+            { num:'2-Sahna (4s)', desc:'Termosga suv va muz bo\'laklari solinishi.', text:'"24 soat davomida muzdek!"' },
+            { num:'3-Sahna (3s)', desc:'Termos unboxing (qutidan olish) jarayoni.', text:'"Premium sifat va qulaylik"' },
+            { num:'4-Sahna (3s)', desc:'Bepul yetkazib berish kafolati ko\'rinadi.', text:`"Narxi: ${price} so'm. Direct'ga yozing!"` },
+        ];
+
+        agentState.copywriter.data = { caption, reelsScriptText };
+
+        loadingCopywriter.classList.add('hidden');
+        resultCopywriter.classList.remove('hidden');
+
+        await Promise.all([
+            typeTextarea(document.getElementById('r-caption'), caption, 6),
+            typeReels(document.getElementById('r-reels'), scenes)
+        ]);
+
+        agentState.copywriter.status = 'done';
+        updateBadge('copywriter', 'done', 'Tayyor ✓');
+        updateSupervisorCard('copywriter', 'done', 'Tayyor ✓');
+        addLog(`Kopirayter matnlar va Reels ssenariylarini yozib tugatdi.`, 'copywriter');
+        tabCopywriter.classList.remove('pipelining');
+        await wait(1200);
+
+        // ── 4-QADAM: SHAXSIY ASSISTENT (SUPERVISOR) ─────────────────────────
+        switchTab('supervisor');
+        const tabSupervisor = document.getElementById('tab-supervisor');
+        tabSupervisor.classList.add('pipelining');
+
+        addLog('Assistent barcha agentlar ishini tekshirishni boshladi...', 'supervisor');
+        ['marketer', 'designer', 'copywriter'].forEach(a => {
+            updateSupervisorCard(a, 'reviewing', 'Tekshirilmoqda...');
+        });
+
+        await wait(2000);
+
+        ['marketer', 'designer', 'copywriter'].forEach(a => {
+            updateSupervisorCard(a, 'done', 'Tasdiqlandi ✓');
+        });
+
+        addLog('Sifat nazorati yakunlandi. Hamma ma\'lumotlar imlosi tekshirildi.', 'supervisor');
+        addLog('✅ Tayyor bo\'ldi, xo\'jayin! Barcha fayllar taqdim etildi.', 'success');
+
+        exportCard.classList.remove('locked');
+        exportCard.classList.add('unlocked');
+        tabSupervisor.classList.remove('pipelining');
+
+        // Enable inputs
+        prodName.disabled = false;
+        prodPrice.disabled = false;
+        styleSelect.disabled = false;
+        btnGlobalStart.disabled = false;
+        btnGlobalStart.innerHTML = '<i data-lucide="play-circle"></i> Ishni Boshlash (Start) 🚀';
+        lucide.createIcons();
+
+        toast('Auto-Flow muvaffaqiyatli yakunlandi! 👑');
+    }
+
+    btnGlobalStart.addEventListener('click', runGlobalPipeline);
 
     function getProductName() { return prodName.value || 'Mahsulot'; }
     function getProductPrice() { return parseInt(prodPrice.value || 0).toLocaleString('uz-UZ'); }
@@ -215,13 +519,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         agentState.marketer.data = { audience, triggers, hashtags };
 
-        // Populate result
-        document.getElementById('r-audience').textContent = audience;
-        document.getElementById('r-triggers').textContent = triggers;
-        document.getElementById('r-hashtags').innerHTML = hashtags.map(h => `<span class="htag">${h}</span>`).join('');
-
         loading.classList.add('hidden');
         result.classList.remove('hidden');
+
+        // Typewriter reveal
+        await Promise.all([
+            typeText(document.getElementById('r-audience'), audience, 10),
+            typeText(document.getElementById('r-triggers'), triggers, 10),
+            typeHashtags(document.getElementById('r-hashtags'), hashtags)
+        ]);
 
         agentState.marketer.status = 'done';
         updateBadge('marketer', 'done', 'Tayyor ✓');
@@ -412,19 +718,14 @@ Matn: "Narxi: ${price} so'm. Direct'ga yozing!"`;
             { num:'4-Sahna (3s)', desc:'Bepul yetkazib berish kafolati ko\'rinadi.', text:`"Narxi: ${price} so'm. Direct'ga yozing!"` },
         ];
 
-        // Populate
-        document.getElementById('r-caption').value = caption;
-        document.getElementById('r-reels').innerHTML = scenes.map(s => `
-            <div class="reel-card">
-                <span class="reel-num">${s.num}</span>
-                <p class="reel-desc">${s.desc}</p>
-                <span class="reel-overlay"><i data-lucide="type"></i> Matn: ${s.text}</span>
-            </div>
-        `).join('');
-        lucide.createIcons();
-
         loading.classList.add('hidden');
         result.classList.remove('hidden');
+
+        // Typewriter outputs
+        await Promise.all([
+            typeTextarea(document.getElementById('r-caption'), caption, 6),
+            typeReels(document.getElementById('r-reels'), scenes)
+        ]);
 
         agentState.copywriter.status = 'done';
         agentState.copywriter.data = { caption, reelsScriptText };
