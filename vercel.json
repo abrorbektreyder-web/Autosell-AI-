@@ -1,19 +1,15 @@
 {
-    "version": 2,
-    "functions": {
-        "api/groq.js": {
-            "memory": 128,
-            "maxDuration": 30
-        }
-    },
-    "routes": [
-        {
-            "src": "/api/groq",
-            "dest": "/api/groq.js"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/$1"
-        }
-    ]
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "apps/web/$1"
+    }
+  ]
 }
