@@ -1,0 +1,16 @@
+{
+  "name": "instagram-ai-sales-bot-crm",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @iasb/web",
+    "build:web": "npm run build -w @iasb/web",
+    "typecheck:web": "npm run typecheck -w @iasb/web"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  }
+}
