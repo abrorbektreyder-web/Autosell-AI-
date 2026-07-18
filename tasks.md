@@ -21,24 +21,24 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 1. Database va persistence
 
-- [ ] PostgreSQL ulanish qatlami yaratildi.
-- [ ] SQLAlchemy 2.0 async konfiguratsiyasi qo'shildi.
-- [ ] Alembic migration tizimi o'rnatildi.
-- [ ] `schema.sql` dagi jadvallar migrationlarga ko'chirildi.
-  - [ ] Alembic migratsiyasi boshida `pgcrypto` extension faollashtirildi.
-- [ ] `businesses` va `users` modellari yaratildi.
-- [ ] `instagram_accounts` modeli yaratildi.
-- [ ] `telegram_settings` modeli yaratildi.
-- [ ] `products` modeli yaratildi.
-- [ ] `campaigns` va `campaign_keywords` modellari yaratildi.
-- [ ] `instagram_comments` modeli yaratildi.
-- [ ] `conversations` va `messages` modellari yaratildi.
-- [ ] `leads` modeli yaratildi.
-- [ ] `export_jobs` va `audit_logs` modellari yaratildi.
-- [ ] Foreign key, unique constraint va indexlar migrationlarda tekshirildi.
-- [ ] Repository/service qatlami yaratildi.
-- [ ] `demo_store.py` production requestlaridan chiqarildi.
-- [ ] API qayta ishga tushganda ma'lumotlar saqlanib qolishi test qilindi.
+- [x] PostgreSQL ulanish qatlami yaratildi.
+- [x] SQLAlchemy 2.0 async konfiguratsiyasi qo'shildi.
+- [x] Alembic migration tizimi o'rnatildi.
+- [x] `schema.sql` dagi jadvallar migrationlarga ko'chirildi.
+  - [x] Alembic migratsiyasi boshida `pgcrypto` extension faollashtirildi.
+- [x] `businesses` va `users` modellari yaratildi.
+- [x] `instagram_accounts` modeli yaratildi.
+- [x] `telegram_settings` modeli yaratildi.
+- [x] `products` modeli yaratildi.
+- [x] `campaigns` va `campaign_keywords` modellari yaratildi.
+- [x] `instagram_comments` modeli yaratildi.
+- [x] `conversations` va `messages` modellari yaratildi.
+- [x] `leads` modeli yaratildi.
+- [x] `export_jobs` va `audit_logs` modellari yaratildi.
+- [x] Foreign key, unique constraint va indexlar migrationlarda tekshirildi.
+- [x] Repository/service qatlami yaratildi.
+- [x] `demo_store.py` production requestlaridan chiqarildi.
+- [x] API qayta ishga tushganda ma'lumotlar saqlanib qolishi test qilindi.
 
 ## 2. Authentication va multi-tenant security
 
