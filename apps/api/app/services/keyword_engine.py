@@ -5,6 +5,9 @@ import unicodedata
 def normalize_keyword(value: str) -> str:
     text = unicodedata.normalize("NFKC", value or "")
     text = text.strip().lower()
+    # Remove #, dots, punctuation, and common comment symbols
+    text = re.sub(r"[#\.\?!,;:\-_@\*\/\\+]", "", text)
+    text = text.strip()
     text = re.sub(r"\s+", " ", text)
     return text
 

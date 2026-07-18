@@ -57,18 +57,18 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 3. Products va campaigns API
 
-- [ ] Products CRUD database bilan ishlaydi.
-- [ ] Product maydonlari TZ bilan bir xil qilindi: narx, chegirma, ranglar, variantlar, FAQ va delivery.
-- [ ] Product active/inactive holati ishlaydi.
-- [ ] Campaigns CRUD database bilan ishlaydi.
-- [ ] Campaign start/end date va active/inactive holati tekshiriladi.
-- [ ] Campaign faqat o'z tenantidagi active productga ulanadi.
-- [ ] Campaign keyword yaratish va yangilash ishlaydi.
-- [ ] Bir tenant ichida active keyword takrorlanishiga yo'l qo'yilmaydi.
-- [ ] Keyword exact-match qoidasi implement qilindi.
-- [ ] Keyword normalization trim, lowercase, `#`, nuqta va ortiqcha belgilarni TZ bo'yicha qayta ishlaydi.
-- [ ] Unknown keyword uchun product taxmin qilinmaydi.
-- [ ] API validation va to'g'ri HTTP statuslar test qilindi.
+- [x] Products CRUD database bilan ishlaydi.
+- [x] Product maydonlari TZ bilan bir xil qilindi: narx, chegirma, ranglar, variantlar, FAQ va delivery.
+- [x] Product active/inactive holati ishlaydi.
+- [x] Campaigns CRUD database bilan ishlaydi.
+- [x] Campaign start/end date va active/inactive holati tekshiriladi.
+- [x] Campaign faqat o'z tenantidagi active productga ulanadi.
+- [x] Campaign keyword yaratish va yangilash ishlaydi.
+- [x] Bir tenant ichida active keyword takrorlanishiga yo'l qo'yilmaydi.
+- [x] Keyword exact-match qoidasi implement qilindi.
+- [x] Keyword normalization trim, lowercase, `#`, nuqta va ortiqcha belgilarni TZ bo'yicha qayta ishlaydi.
+- [x] Unknown keyword uchun product taxmin qilinmaydi.
+- [x] API validation va to'g'ri HTTP statuslar test qilindi.
 
 ## 4. Frontend va backend ulanishi
 
