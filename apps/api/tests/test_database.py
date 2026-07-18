@@ -12,13 +12,13 @@ from app.main import app
 class TestDatabaseAPI(unittest.TestCase):
     def test_health_check(self):
         with TestClient(app) as client:
-            response = client.get("/health")
+            response = self.client_get(client, "/health", authenticated=False)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["status"], "ok")
 
     def test_list_products_from_db(self):
         with TestClient(app) as client:
-            response = client.get("/api/products")
+            response = self.client_get(client, "/api/products")
             self.assertEqual(response.status_code, 200)
             products = response.json()
             self.assertIsInstance(products, list)
@@ -32,7 +32,7 @@ class TestDatabaseAPI(unittest.TestCase):
 
     def test_get_dashboard_summary(self):
         with TestClient(app) as client:
-            response = client.get("/api/dashboard")
+            response = self.client_get(client, "/api/dashboard")
             self.assertEqual(response.status_code, 200)
             summary = response.json()
             self.assertIn("total_leads", summary)
@@ -41,7 +41,7 @@ class TestDatabaseAPI(unittest.TestCase):
 
     def test_get_campaigns(self):
         with TestClient(app) as client:
-            response = client.get("/api/campaigns")
+            response = self.client_get(client, "/api/campaigns")
             self.assertEqual(response.status_code, 200)
             campaigns = response.json()
             self.assertIsInstance(campaigns, list)
@@ -51,6 +51,18 @@ class TestDatabaseAPI(unittest.TestCase):
             self.assertIsNotNone(sofa_campaign)
             self.assertEqual(sofa_campaign["keyword"], "55")
             self.assertEqual(sofa_campaign["normalized_keyword"], "55")
+
+    # Helper method to handle authentication token automatically
+    def client_get(self, client, url, authenticated=True):
+        headers = {}
+        if authenticated:
+            login_res = client.post("/api/auth/login", json={
+                "email": "owner@example.com",
+                "password": "password"
+            })
+            token = login_res.json()["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+        return client.get(url, headers=headers)
 
 if __name__ == "__main__":
     unittest.main()

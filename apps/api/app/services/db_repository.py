@@ -1,8 +1,9 @@
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete
+from sqlalchemy import update, delete, func
 from sqlalchemy.orm import selectinload
+from app.core.security import get_password_hash
 
 from app.models import (
     Business,
@@ -388,3 +389,48 @@ async def find_campaign_by_keyword(
         )
     )
     return result.scalar_one_or_none()
+
+
+# AUTHENTICATION & MULTI-TENANT DATABASE ACCESS
+async def create_user_and_business(
+    db: AsyncSession, email: str, password: str, first_name: str, business_name: str
+) -> User:
+    # 1. Create Business
+    business = Business(
+        business_name=business_name,
+        owner_email=email,
+        status="active",
+    )
+    db.add(business)
+    await db.flush()  # Generate business.id
+
+    # 2. Hash password and create User
+    hashed_pw = get_password_hash(password)
+    user = User(
+        business_id=business.id,
+        email=email,
+        password_hash=hashed_pw,
+        first_name=first_name,
+        role="owner",
+        status="active",
+    )
+    db.add(user)
+
+    # 3. Create default TelegramSettings
+    tg_settings = TelegramSettings(
+        business_id=business.id,
+        notification_enabled=False,
+    )
+    db.add(tg_settings)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    result = await db.execute(
+        select(User).filter(func.lower(User.email) == email.lower())
+    )
+    return result.scalar_one_or_none()
+

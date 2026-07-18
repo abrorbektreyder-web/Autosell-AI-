@@ -55,7 +55,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
         business_id=DEMO_BUSINESS_ID,
         email="owner@example.com",
         # bcrypt hash for password "password" (dummy for now)
-        password_hash="$2b$12$K1dJvWkU/l9kXyN895t62Oeh4qN7YjV.tVbVlH93j5aY9sTj.9SOW",
+        password_hash="$2b$12$oNAXq9B5/208rqmTqPuXBeUQmbQuAkgY.kjmTSmkq3j/x7G6tgrcC",
         first_name="Akmal",
         role="owner",
         status="active",

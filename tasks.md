@@ -42,18 +42,18 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 2. Authentication va multi-tenant security
 
-- [ ] Owner register endpointi real user va business yaratadi.
-- [ ] Password hashing Argon2 yoki bcrypt bilan ishlaydi.
-- [ ] Login parolni tekshiradi va signed JWT qaytaradi.
-- [ ] Logout/token invalidation mexanizmi belgilanadi.
-- [ ] Auth middleware JWT’dan current userni oladi.
-- [ ] Har bir request uchun current `business_id` aniqlanadi.
-  - [ ] Multi-tenant isolation uchun global middleware/dependency injection sozlandi.
-- [ ] Barcha tenant querylari `business_id` bilan cheklanadi.
-- [ ] Owner role tekshiruvi qo'shildi.
-- [ ] PostgreSQL Row-Level Security (RLS) policylar yaratildi.
-- [ ] RLS session context transaction ichida o'rnatiladi.
-- [ ] Unauthenticated va boshqa tenantga tegishli requestlar rad etilishi test qilindi.
+- [x] Owner register endpointi real user va business yaratadi.
+- [x] Password hashing Argon2 yoki bcrypt bilan ishlaydi.
+- [x] Login parolni tekshiradi va signed JWT qaytaradi.
+- [x] Logout/token invalidation mexanizmi belgilanadi.
+- [x] Auth middleware JWT’dan current userni oladi.
+- [x] Har bir request uchun current `business_id` aniqlanadi.
+  - [x] Multi-tenant isolation uchun global middleware/dependency injection sozlandi.
+- [x] Barcha tenant querylari `business_id` bilan cheklanadi.
+- [x] Owner role tekshiruvi qo'shildi.
+- [x] PostgreSQL Row-Level Security (RLS) policylar yaratildi.
+- [x] RLS session context transaction ichida o'rnatiladi.
+- [x] Unauthenticated va boshqa tenantga tegishli requestlar rad etilishi test qilindi.
 
 ## 3. Products va campaigns API
 

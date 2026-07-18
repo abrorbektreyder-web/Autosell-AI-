@@ -104,3 +104,21 @@ class DashboardSummary(BaseModel):
     instagram_status: str
     telegram_status: str
     ai_conversations: int
+
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    business_name: str
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+

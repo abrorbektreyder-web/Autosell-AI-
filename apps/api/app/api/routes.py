@@ -3,6 +3,9 @@ from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import verify_password, create_access_token
+from app.api.deps import get_tenant_db, get_current_user
+from app.models import User as DBUser
 from app.schemas.domain import (
     Campaign,
     CampaignCreate,
@@ -14,15 +17,15 @@ from app.schemas.domain import (
     Conversation,
     Message,
     TelegramSettings as TelegramSettingsSchema,
+    UserRegister,
+    UserLogin,
+    Token,
 )
 from app.services import db_repository
 from app.services.ai_sales import build_first_reply
 from app.services.telegram import format_lead_notification
 
 router = APIRouter()
-
-# Default Demo Business ID used until Section 2 (Auth) is fully active
-DEMO_BUSINESS_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 # Helper mappers from DB ORM models to Pydantic schemas
@@ -89,31 +92,46 @@ def map_conversation_to_pydantic(conv) -> Conversation:
     )
 
 
-@router.get("/dashboard", response_model=DashboardSummary)
-async def dashboard(db: AsyncSession = Depends(get_db)) -> DashboardSummary:
-    summary = await db_repository.get_dashboard_summary(db, DEMO_BUSINESS_ID)
-    return DashboardSummary(**summary)
+# AUTHENTICATION
+@router.post("/auth/register")
+async def register(
+    payload: UserRegister, db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
+    existing_user = await db_repository.get_user_by_email(db, payload.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=400, detail="Foydalanuvchi elektron manzili tizimda mavjud"
+        )
+    
+    await db_repository.create_user_and_business(
+        db, payload.email, payload.password, payload.first_name, payload.business_name
+    )
+    return {"status": "created"}
+
+
+@router.post("/auth/login", response_model=Token)
+async def login(
+    payload: UserLogin, db: AsyncSession = Depends(get_db)
+) -> Token:
+    user = await db_repository.get_user_by_email(db, payload.email)
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=401, detail="Email yoki parol noto'g'ri"
+        )
+    
+    access_token = create_access_token(user.id)
+    return Token(access_token=access_token, token_type="bearer")
 
 
 @router.get("/auth/me")
-def me() -> dict[str, str]:
-    # Placeholder for auth
+def me(current_user: DBUser = Depends(get_current_user)) -> dict[str, str]:
     return {
-        "id": "owner-demo",
-        "business_id": str(DEMO_BUSINESS_ID),
-        "email": "owner@example.com",
-        "role": "owner",
+        "id": str(current_user.id),
+        "business_id": str(current_user.business_id),
+        "email": current_user.email,
+        "role": current_user.role,
+        "first_name": current_user.first_name,
     }
-
-
-@router.post("/auth/register")
-def register() -> dict[str, str]:
-    return {"status": "created", "next": "Implement password hashing and business provisioning."}
-
-
-@router.post("/auth/login")
-def login() -> dict[str, str]:
-    return {"access_token": "demo-token", "token_type": "bearer"}
 
 
 @router.post("/auth/logout")
@@ -121,29 +139,47 @@ def logout() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# DASHBOARD (Isolated via get_tenant_db RLS and business_id parameter)
+@router.get("/dashboard", response_model=DashboardSummary)
+async def dashboard(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> DashboardSummary:
+    summary = await db_repository.get_dashboard_summary(db, current_user.business_id)
+    return DashboardSummary(**summary)
+
+
+# PRODUCTS (Isolated)
 @router.get("/products", response_model=list[Product])
-async def list_products(db: AsyncSession = Depends(get_db)) -> list[Product]:
-    db_products = await db_repository.list_products(db, DEMO_BUSINESS_ID)
+async def list_products(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> list[Product]:
+    db_products = await db_repository.list_products(db, current_user.business_id)
     return [map_product_to_pydantic(p) for p in db_products]
 
 
 @router.post("/products", response_model=Product)
 async def create_product(
-    payload: ProductCreate, db: AsyncSession = Depends(get_db)
+    payload: ProductCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Product:
-    product = await db_repository.create_product(db, DEMO_BUSINESS_ID, payload)
+    product = await db_repository.create_product(db, current_user.business_id, payload)
     return map_product_to_pydantic(product)
 
 
 @router.get("/products/{product_id}", response_model=Product)
 async def get_product(
-    product_id: str, db: AsyncSession = Depends(get_db)
+    product_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Product:
     product_uuid = db_repository.to_uuid(product_id)
     if not product_uuid:
         raise HTTPException(status_code=400, detail="Invalid product UUID format")
 
-    product = await db_repository.get_product(db, DEMO_BUSINESS_ID, product_uuid)
+    product = await db_repository.get_product(db, current_user.business_id, product_uuid)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return map_product_to_pydantic(product)
@@ -151,14 +187,17 @@ async def get_product(
 
 @router.patch("/products/{product_id}", response_model=Product)
 async def update_product(
-    product_id: str, payload: ProductCreate, db: AsyncSession = Depends(get_db)
+    product_id: str,
+    payload: ProductCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Product:
     product_uuid = db_repository.to_uuid(product_id)
     if not product_uuid:
         raise HTTPException(status_code=400, detail="Invalid product UUID format")
 
     product = await db_repository.update_product(
-        db, DEMO_BUSINESS_ID, product_uuid, payload
+        db, current_user.business_id, product_uuid, payload
     )
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -167,31 +206,39 @@ async def update_product(
 
 @router.delete("/products/{product_id}")
 async def delete_product(
-    product_id: str, db: AsyncSession = Depends(get_db)
+    product_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> dict[str, str]:
     product_uuid = db_repository.to_uuid(product_id)
     if not product_uuid:
         raise HTTPException(status_code=400, detail="Invalid product UUID format")
 
-    success = await db_repository.delete_product(db, DEMO_BUSINESS_ID, product_uuid)
+    success = await db_repository.delete_product(db, current_user.business_id, product_uuid)
     if not success:
         raise HTTPException(status_code=404, detail="Product not found")
     return {"status": "inactive"}
 
 
+# CAMPAIGNS (Isolated)
 @router.get("/campaigns", response_model=list[Campaign])
-async def list_campaigns(db: AsyncSession = Depends(get_db)) -> list[Campaign]:
-    db_campaigns = await db_repository.list_campaigns(db, DEMO_BUSINESS_ID)
+async def list_campaigns(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> list[Campaign]:
+    db_campaigns = await db_repository.list_campaigns(db, current_user.business_id)
     return [map_campaign_to_pydantic(c) for c in db_campaigns]
 
 
 @router.post("/campaigns", response_model=Campaign)
 async def create_campaign(
-    payload: CampaignCreate, db: AsyncSession = Depends(get_db)
+    payload: CampaignCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Campaign:
     try:
         campaign = await db_repository.create_campaign(
-            db, DEMO_BUSINESS_ID, payload
+            db, current_user.business_id, payload
         )
         return map_campaign_to_pydantic(campaign)
     except ValueError as e:
@@ -200,13 +247,15 @@ async def create_campaign(
 
 @router.get("/campaigns/{campaign_id}", response_model=Campaign)
 async def get_campaign(
-    campaign_id: str, db: AsyncSession = Depends(get_db)
+    campaign_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Campaign:
     campaign_uuid = db_repository.to_uuid(campaign_id)
     if not campaign_uuid:
         raise HTTPException(status_code=400, detail="Invalid campaign UUID format")
 
-    campaign = await db_repository.get_campaign(db, DEMO_BUSINESS_ID, campaign_uuid)
+    campaign = await db_repository.get_campaign(db, current_user.business_id, campaign_uuid)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     return map_campaign_to_pydantic(campaign)
@@ -214,7 +263,10 @@ async def get_campaign(
 
 @router.patch("/campaigns/{campaign_id}", response_model=Campaign)
 async def update_campaign(
-    campaign_id: str, payload: CampaignCreate, db: AsyncSession = Depends(get_db)
+    campaign_id: str,
+    payload: CampaignCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Campaign:
     campaign_uuid = db_repository.to_uuid(campaign_id)
     if not campaign_uuid:
@@ -222,7 +274,7 @@ async def update_campaign(
 
     try:
         campaign = await db_repository.update_campaign(
-            db, DEMO_BUSINESS_ID, campaign_uuid, payload
+            db, current_user.business_id, campaign_uuid, payload
         )
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
@@ -233,20 +285,23 @@ async def update_campaign(
 
 @router.delete("/campaigns/{campaign_id}")
 async def delete_campaign(
-    campaign_id: str, db: AsyncSession = Depends(get_db)
+    campaign_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> dict[str, str]:
     campaign_uuid = db_repository.to_uuid(campaign_id)
     if not campaign_uuid:
         raise HTTPException(status_code=400, detail="Invalid campaign UUID format")
 
     success = await db_repository.delete_campaign(
-        db, DEMO_BUSINESS_ID, campaign_uuid
+        db, current_user.business_id, campaign_uuid
     )
     if not success:
         raise HTTPException(status_code=404, detail="Campaign not found")
     return {"status": "inactive"}
 
 
+# INTEGRATIONS (OAuth Connect placeholders)
 @router.get("/integrations/instagram/connect")
 def instagram_connect() -> dict[str, str]:
     return {"status": "pending", "next": "Redirect owner to Meta OAuth with instagram_manage_messages permissions."}
@@ -263,7 +318,6 @@ def verify_instagram_webhook(
     token: str | None = Query(default=None, alias="hub.verify_token"),
     challenge: str | None = Query(default=None, alias="hub.challenge"),
 ) -> str:
-    # Use config verification token
     from app.core.config import settings
 
     if mode == "subscribe" and token == settings.meta_verify_token and challenge:
@@ -273,21 +327,23 @@ def verify_instagram_webhook(
 
 @router.post("/webhooks/instagram")
 async def receive_instagram_webhook(
-    payload: InstagramWebhookEvent, db: AsyncSession = Depends(get_db)
+    payload: InstagramWebhookEvent,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> dict[str, str]:
     campaign = await db_repository.find_campaign_by_keyword(
-        db, DEMO_BUSINESS_ID, payload.comment_text
+        db, current_user.business_id, payload.comment_text
     )
     if not campaign:
         return {"status": "ignored", "reason": "keyword_not_found"}
 
     product = await db_repository.get_product(
-        db, DEMO_BUSINESS_ID, campaign.product_id
+        db, current_user.business_id, campaign.product_id
     )
     if not product:
         return {"status": "ignored", "reason": "associated_product_not_active"}
 
-    # Mock matching schemas for compatibility
+    # Mock schemas matching
     from app.schemas.domain import Product as SchemaProduct, Campaign as SchemaCampaign
     schema_product = map_product_to_pydantic(product)
     schema_campaign = map_campaign_to_pydantic(campaign)
@@ -302,11 +358,13 @@ async def receive_instagram_webhook(
     }
 
 
+# TELEGRAM SETTINGS
 @router.get("/integrations/telegram", response_model=TelegramSettingsSchema)
 async def get_telegram_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> TelegramSettingsSchema:
-    settings = await db_repository.get_telegram_settings(db, DEMO_BUSINESS_ID)
+    settings = await db_repository.get_telegram_settings(db, current_user.business_id)
     if not settings:
         return TelegramSettingsSchema(
             bot_username=None, chat_id=None, notification_enabled=False
@@ -321,11 +379,13 @@ async def get_telegram_settings(
 
 @router.post("/integrations/telegram")
 async def save_telegram_settings(
-    payload: TelegramSettingsSchema, db: AsyncSession = Depends(get_db)
+    payload: TelegramSettingsSchema,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> dict[str, str]:
     await db_repository.save_telegram_settings(
         db,
-        DEMO_BUSINESS_ID,
+        current_user.business_id,
         payload.bot_username,
         payload.chat_id,
         payload.notification_enabled,
@@ -337,13 +397,16 @@ async def save_telegram_settings(
 
 
 @router.post("/integrations/telegram/test")
-async def test_telegram(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    db_leads = await db_repository.list_leads(db, DEMO_BUSINESS_ID)
+async def test_telegram(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> dict[str, str]:
+    db_leads = await db_repository.list_leads(db, current_user.business_id)
     if not db_leads:
         raise HTTPException(status_code=400, detail="No leads available to test notification")
 
     lead = db_leads[0]
-    product = await db_repository.get_product(db, DEMO_BUSINESS_ID, lead.product_id)
+    product = await db_repository.get_product(db, current_user.business_id, lead.product_id)
     product_name = product.name if product else "Unknown"
 
     schema_lead = map_lead_to_pydantic(lead)
@@ -353,19 +416,27 @@ async def test_telegram(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     }
 
 
+# LEADS
 @router.get("/leads", response_model=list[Lead])
-async def list_leads(db: AsyncSession = Depends(get_db)) -> list[Lead]:
-    db_leads = await db_repository.list_leads(db, DEMO_BUSINESS_ID)
+async def list_leads(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> list[Lead]:
+    db_leads = await db_repository.list_leads(db, current_user.business_id)
     return [map_lead_to_pydantic(l) for l in db_leads]
 
 
 @router.get("/leads/{lead_id}", response_model=Lead)
-async def get_lead(lead_id: str, db: AsyncSession = Depends(get_db)) -> Lead:
+async def get_lead(
+    lead_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> Lead:
     lead_uuid = db_repository.to_uuid(lead_id)
     if not lead_uuid:
         raise HTTPException(status_code=400, detail="Invalid lead UUID format")
 
-    lead = await db_repository.get_lead(db, DEMO_BUSINESS_ID, lead_uuid)
+    lead = await db_repository.get_lead(db, current_user.business_id, lead_uuid)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     return map_lead_to_pydantic(lead)
@@ -373,29 +444,35 @@ async def get_lead(lead_id: str, db: AsyncSession = Depends(get_db)) -> Lead:
 
 @router.patch("/leads/{lead_id}", response_model=Lead)
 async def update_lead_status(
-    lead_id: str, status: str, db: AsyncSession = Depends(get_db)
+    lead_id: str,
+    status: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Lead:
     lead_uuid = db_repository.to_uuid(lead_id)
     if not lead_uuid:
         raise HTTPException(status_code=400, detail="Invalid lead UUID format")
 
     lead = await db_repository.update_lead_status(
-        db, DEMO_BUSINESS_ID, lead_uuid, status
+        db, current_user.business_id, lead_uuid, status
     )
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     return map_lead_to_pydantic(lead)
 
 
+# CONVERSATIONS
 @router.get("/conversations/{conversation_id}", response_model=Conversation)
 async def get_conversation(
-    conversation_id: str, db: AsyncSession = Depends(get_db)
+    conversation_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
 ) -> Conversation:
     conv_uuid = db_repository.to_uuid(conversation_id)
     if not conv_uuid:
         raise HTTPException(status_code=400, detail="Invalid conversation UUID format")
 
-    conv = await db_repository.get_conversation(db, DEMO_BUSINESS_ID, conv_uuid)
+    conv = await db_repository.get_conversation(db, current_user.business_id, conv_uuid)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return map_conversation_to_pydantic(conv)
