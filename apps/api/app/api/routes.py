@@ -362,7 +362,8 @@ async def receive_instagram_webhook(
     schema_product = map_product_to_pydantic(product)
     schema_campaign = map_campaign_to_pydantic(campaign)
 
-    reply = build_first_reply(schema_product, schema_campaign)
+    from app.services.ai_sales import generate_ai_sales_response
+    reply = generate_ai_sales_response(schema_product, schema_campaign, payload.comment_text)
     return {
         "status": "queued",
         "campaign_id": str(campaign.id),

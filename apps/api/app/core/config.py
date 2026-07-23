@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     meta_verify_token: str = "local-verify-token"
     meta_webhook_secret: str = ""
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    groq_api_key: str = ""
+    ai_model: str = "llama-3.3-70b-versatile"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
