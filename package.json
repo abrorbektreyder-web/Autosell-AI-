@@ -7,8 +7,11 @@
   ],
   "scripts": {
     "dev:web": "npm run dev -w @iasb/web",
+    "lint:web": "npm run lint -w @iasb/web",
     "build:web": "npm run build -w @iasb/web",
-    "typecheck:web": "npm run typecheck -w @iasb/web"
+    "typecheck:web": "npm run typecheck -w @iasb/web",
+    "test:api": "python -m unittest discover -s apps/api/tests -p \"test_*.py\"",
+    "test": "npm run test:api"
   },
   "overrides": {
     "postcss": "8.5.10"

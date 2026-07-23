@@ -379,6 +379,7 @@ async def find_campaign_by_keyword(
     # Join with CampaignKeyword to search
     result = await db.execute(
         select(Campaign)
+        .options(selectinload(Campaign.campaign_keywords))
         .join(CampaignKeyword, CampaignKeyword.campaign_id == Campaign.id)
         .filter(
             Campaign.business_id == business_id,
@@ -391,9 +392,10 @@ async def find_campaign_by_keyword(
     return result.scalar_one_or_none()
 
 
+
 # AUTHENTICATION & MULTI-TENANT DATABASE ACCESS
 async def create_user_and_business(
-    db: AsyncSession, email: str, password: str, first_name: str, business_name: str
+    db: AsyncSession, email: str, password: str, first_name: str, business_name: str, seed: bool = True
 ) -> User:
     # 1. Create Business
     business = Business(
@@ -419,13 +421,127 @@ async def create_user_and_business(
     # 3. Create default TelegramSettings
     tg_settings = TelegramSettings(
         business_id=business.id,
-        notification_enabled=False,
+        bot_username="@autosell_demo_bot",
+        chat_id="-100123456789",
+        notification_enabled=True,
     )
     db.add(tg_settings)
+
+    if seed:
+        # 4. Create initial default products for demo / immediate usage
+        p1 = Product(
+            business_id=business.id,
+            name="Yumshoq mebel",
+            price=3990000.0,
+            discount_price=3500000.0,
+            description="Zamonaviy yumshoq mebel to'plami. Sifatli mato va yog'och karkas.",
+            delivery_info="Toshkent bo'yicha yetkazib berish bepul (24 soat). Viloyatlarga 2 kun.",
+            variants=["Kulrang", "Jigarrang", "Ko'k"],
+            faq=[{"question": "Kafolat bormi?", "answer": "Ha, 2 yil rasmiy kafolat beriladi."}],
+            status="active",
+        )
+        p2 = Product(
+            business_id=business.id,
+            name="Oshxona mebeli",
+            price=8900000.0,
+            discount_price=8200000.0,
+            description="Premium MDF oshxona mebel to'plami.",
+            delivery_info="3 ish kunida yetkazib va o'rnatib beriladi.",
+            variants=["Oq / Yong'oq", "Kulrang / Marmar"],
+            faq=[{"question": "O'lcham olish bepulmi?", "answer": "Ha, Toshkent ichida usta borishi va o'lchov bepul."}],
+            status="active",
+        )
+        p3 = Product(
+            business_id=business.id,
+            name="Ofis kreslosi",
+            price=1250000.0,
+            discount_price=1100000.0,
+            description="Ergonomik to'rli ofis kreslosi.",
+            delivery_info="Bugunning o'zida yetkazib beriladi.",
+            variants=["Qora", "Kulrang"],
+            faq=[{"question": "Vazn cheklovi qancha?", "answer": "130 kg gacha ko'taradi."}],
+            status="active",
+        )
+        db.add_all([p1, p2, p3])
+        await db.flush()  # generate product IDs
+
+        # 5. Create initial campaign & keyword
+        camp = Campaign(
+            business_id=business.id,
+            product_id=p1.id,
+            name="Yumshoq mebel aksiyasi",
+            first_dm_message="Assalomu alaykum! Yumshoq mebel narxi 3 990 000 so'mdan boshlanadi. Qaysi rangiga qiziqayapsiz?",
+            auto_dm_enabled=True,
+            status="active",
+        )
+        db.add(camp)
+        await db.flush()
+
+        kw = CampaignKeyword(
+            business_id=business.id,
+            campaign_id=camp.id,
+            product_id=p1.id,
+            keyword="55",
+            normalized_keyword="55",
+            status="active",
+        )
+        db.add(kw)
+
+        # 6. Create initial sample lead & conversation
+        lead = Lead(
+            business_id=business.id,
+            customer_name="Akmal Rahimov",
+            phone="+998 90 123 45 67",
+            instagram_username="akmal_mebel",
+            product_id=p1.id,
+            campaign_id=camp.id,
+            status="qualified",
+            ai_summary="Kulrang variantga qiziqdi, telefon raqamini qoldirdi.",
+        )
+        db.add(lead)
+        await db.flush()
+
+        conv = Conversation(
+            business_id=business.id,
+            lead_id=lead.id,
+            product_id=p1.id,
+            campaign_id=camp.id,
+            instagram_username="akmal_mebel",
+            status="active",
+        )
+        db.add(conv)
+        await db.flush()
+
+        m1 = Message(
+            business_id=business.id,
+            conversation_id=conv.id,
+            sender_type="customer",
+            message_text="55",
+        )
+        m2 = Message(
+            business_id=business.id,
+            conversation_id=conv.id,
+            sender_type="ai",
+            message_text="Assalomu alaykum! Yumshoq mebel narxi 3 990 000 so'mdan boshlanadi. Qaysi rangiga qiziqayapsiz?",
+        )
+        m3 = Message(
+            business_id=business.id,
+            conversation_id=conv.id,
+            sender_type="customer",
+            message_text="Kulrang kerak. Akmal, +998 90 123 45 67",
+        )
+        m4 = Message(
+            business_id=business.id,
+            conversation_id=conv.id,
+            sender_type="system",
+            message_text="Lead CRM'ga saqlandi va Telegram guruhga yuborildi.",
+        )
+        db.add_all([m1, m2, m3, m4])
 
     await db.commit()
     await db.refresh(user)
     return user
+
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:

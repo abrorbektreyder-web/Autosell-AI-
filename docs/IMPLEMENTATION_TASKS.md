@@ -21,75 +21,68 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 1. Database va persistence
 
-- [x] PostgreSQL ulanish qatlami yaratildi.
-- [x] SQLAlchemy 2.0 async konfiguratsiyasi qo'shildi.
-- [x] Alembic migration tizimi o'rnatildi.
-- [x] `schema.sql` dagi jadvallar migrationlarga ko'chirildi.
-  - [x] Alembic migratsiyasi boshida `pgcrypto` extension faollashtirildi.
-- [x] `businesses` va `users` modellari yaratildi.
-- [x] `instagram_accounts` modeli yaratildi.
-- [x] `telegram_settings` modeli yaratildi.
-- [x] `products` modeli yaratildi.
-- [x] `campaigns` va `campaign_keywords` modellari yaratildi.
-- [x] `instagram_comments` modeli yaratildi.
-- [x] `conversations` va `messages` modellari yaratildi.
-- [x] `leads` modeli yaratildi.
-- [x] `export_jobs` va `audit_logs` modellari yaratildi.
-- [x] Foreign key, unique constraint va indexlar migrationlarda tekshirildi.
-- [x] Repository/service qatlami yaratildi.
-- [x] `demo_store.py` production requestlaridan chiqarildi.
-- [x] API qayta ishga tushganda ma'lumotlar saqlanib qolishi test qilindi.
+- [ ] PostgreSQL ulanish qatlami yaratildi.
+- [ ] SQLAlchemy 2.0 async konfiguratsiyasi qo'shildi.
+- [ ] Alembic migration tizimi o'rnatildi.
+- [ ] `schema.sql` dagi jadvallar migrationlarga ko'chirildi.
+- [ ] `businesses` va `users` modellari yaratildi.
+- [ ] `instagram_accounts` modeli yaratildi.
+- [ ] `telegram_settings` modeli yaratildi.
+- [ ] `products` modeli yaratildi.
+- [ ] `campaigns` va `campaign_keywords` modellari yaratildi.
+- [ ] `instagram_comments` modeli yaratildi.
+- [ ] `conversations` va `messages` modellari yaratildi.
+- [ ] `leads` modeli yaratildi.
+- [ ] `export_jobs` va `audit_logs` modellari yaratildi.
+- [ ] Foreign key, unique constraint va indexlar migrationlarda tekshirildi.
+- [ ] Repository/service qatlami yaratildi.
+- [ ] `demo_store.py` production requestlaridan chiqarildi.
+- [ ] API qayta ishga tushganda ma'lumotlar saqlanib qolishi test qilindi.
 
 ## 2. Authentication va multi-tenant security
 
-- [x] Owner register endpointi real user va business yaratadi.
-- [x] Password hashing Argon2 yoki bcrypt bilan ishlaydi.
-- [x] Login parolni tekshiradi va signed JWT qaytaradi.
-- [x] Logout/token invalidation mexanizmi belgilanadi.
-- [x] Auth middleware JWT’dan current userni oladi.
-- [x] Har bir request uchun current `business_id` aniqlanadi.
-  - [x] Multi-tenant isolation uchun global middleware/dependency injection sozlandi.
-- [x] Barcha tenant querylari `business_id` bilan cheklanadi.
-- [x] Owner role tekshiruvi qo'shildi.
-- [x] PostgreSQL Row-Level Security (RLS) policylar yaratildi.
-- [x] RLS session context transaction ichida o'rnatiladi.
-- [x] Unauthenticated va boshqa tenantga tegishli requestlar rad etilishi test qilindi.
+- [ ] Owner register endpointi real user va business yaratadi.
+- [ ] Password hashing Argon2 yoki bcrypt bilan ishlaydi.
+- [ ] Login parolni tekshiradi va signed JWT qaytaradi.
+- [ ] Logout/token invalidation mexanizmi belgilanadi.
+- [ ] Auth middleware JWT’dan current userni oladi.
+- [ ] Har bir request uchun current `business_id` aniqlanadi.
+- [ ] Barcha tenant querylari `business_id` bilan cheklanadi.
+- [ ] Owner role tekshiruvi qo'shildi.
+- [ ] PostgreSQL Row-Level Security policylar yaratildi.
+- [ ] RLS session context transaction ichida o'rnatiladi.
+- [ ] Unauthenticated va boshqa tenantga tegishli requestlar rad etilishi test qilindi.
 
 ## 3. Products va campaigns API
 
-- [x] Products CRUD database bilan ishlaydi.
-- [x] Product maydonlari TZ bilan bir xil qilindi: narx, chegirma, ranglar, variantlar, FAQ va delivery.
-- [x] Product active/inactive holati ishlaydi.
-- [x] Campaigns CRUD database bilan ishlaydi.
-- [x] Campaign start/end date va active/inactive holati tekshiriladi.
-- [x] Campaign faqat o'z tenantidagi active productga ulanadi.
-- [x] Campaign keyword yaratish va yangilash ishlaydi.
-- [x] Bir tenant ichida active keyword takrorlanishiga yo'l qo'yilmaydi.
-- [x] Keyword exact-match qoidasi implement qilindi.
-- [x] Keyword normalization trim, lowercase, `#`, nuqta va ortiqcha belgilarni TZ bo'yicha qayta ishlaydi.
-- [x] Unknown keyword uchun product taxmin qilinmaydi.
-- [x] API validation va to'g'ri HTTP statuslar test qilindi.
+- [ ] Products CRUD database bilan ishlaydi.
+- [ ] Product maydonlari TZ bilan bir xil qilindi: narx, chegirma, ranglar, variantlar, FAQ va delivery.
+- [ ] Product active/inactive holati ishlaydi.
+- [ ] Campaigns CRUD database bilan ishlaydi.
+- [ ] Campaign start/end date va active/inactive holati tekshiriladi.
+- [ ] Campaign faqat o'z tenantidagi active productga ulanadi.
+- [ ] Campaign keyword yaratish va yangilash ishlaydi.
+- [ ] Bir tenant ichida active keyword takrorlanishiga yo'l qo'yilmaydi.
+- [ ] Keyword exact-match qoidasi implement qilindi.
+- [ ] Keyword normalization trim, lowercase, `#`, nuqta va ortiqcha belgilarni TZ bo'yicha qayta ishlaydi.
+- [ ] Unknown keyword uchun product taxmin qilinmaydi.
+- [ ] API validation va to'g'ri HTTP statuslar test qilindi.
 
 ## 4. Frontend va backend ulanishi
 
-- [x] Frontend API client yaratildi.
-- [x] Auth state va token saqlash strategiyasi tanlandi.
-- [x] Login/register ekranlari backendga ulandi.
-- [x] Dashboard metrics backenddan olinadi.
-- [x] Leads ro'yxati backenddan olinadi.
-- [x] Conversations backenddan olinadi.
-- [x] Products sahifasi real CRUD bilan ishlaydi.
-- [x] Campaigns sahifasi real CRUD bilan ishlaydi.
-- [x] Integrations sahifasi real statuslarni ko'rsatadi.
-- [x] Hard-coded lead, campaign, business va metric ma'lumotlari olib tashlandi.
-- [x] Loading, empty, error va unauthorized holatlari qo'shildi.
-- [x] 3 til, dark/light theme va mavjud dizayn saqlanib qoldi.
-  - [x] Interfeysda emojilar o'rniga faqat Lucide-React vektor piktogrammalari ishlatildi.
-  - [x] Tappable interfeys elementlari (tugmalar, tablar) mobil o'lchami minimum 44x44pt qilib sozlandi.
-  - [x] Yuklanish (loading) holatlari uchun skeleton/shimmer animatsiyalari qo'shildi.
-  - [x] Light va Dark mode rejimlarida matn va kontent kontrasti minimum 4.5:1 nisbatda tekshirildi.
-- [x] Frontend API contract test qilindi.
-
+- [ ] Frontend API client yaratildi.
+- [ ] Auth state va token saqlash strategiyasi tanlandi.
+- [ ] Login/register ekranlari backendga ulandi.
+- [ ] Dashboard metrics backenddan olinadi.
+- [ ] Leads ro'yxati backenddan olinadi.
+- [ ] Conversations backenddan olinadi.
+- [ ] Products sahifasi real CRUD bilan ishlaydi.
+- [ ] Campaigns sahifasi real CRUD bilan ishlaydi.
+- [ ] Integrations sahifasi real statuslarni ko'rsatadi.
+- [ ] Hard-coded lead, campaign, business va metric ma'lumotlari olib tashlandi.
+- [ ] Loading, empty, error va unauthorized holatlari qo'shildi.
+- [ ] 3 til, dark/light theme va mavjud dizayn saqlanib qoldi.
+- [ ] Frontend API contract test qilindi.
 
 ## 5. Instagram Meta integration
 
@@ -108,7 +101,6 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 - [ ] Comment ID va user ma'lumotlari saqlanadi.
 - [ ] Comment keyword campaign/product bilan bog'lanadi.
 - [ ] Private Reply Meta API orqali yuboriladi.
-  - [ ] Instagram API rate limits cheklovlari uchun retry logikasi Celery tasklariga kiritildi.
 - [ ] Meta API error va rate limit holatlari qayta ishlanadi.
 - [ ] Test Meta app orqali comment-to-DM flow tasdiqlandi.
 

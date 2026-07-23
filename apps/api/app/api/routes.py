@@ -104,7 +104,7 @@ async def register(
         )
     
     await db_repository.create_user_and_business(
-        db, payload.email, payload.password, payload.first_name, payload.business_name
+        db, payload.email, payload.password, payload.first_name, payload.business_name, seed=False
     )
     return {"status": "created"}
 
@@ -134,9 +134,23 @@ def me(current_user: DBUser = Depends(get_current_user)) -> dict[str, str]:
     }
 
 
+@router.post("/auth/demo-login", response_model=Token)
+async def demo_login(db: AsyncSession = Depends(get_db)) -> Token:
+    demo_email = "owner@autosell.ai"
+    user = await db_repository.get_user_by_email(db, demo_email)
+    if not user:
+        user = await db_repository.create_user_and_business(
+            db, demo_email, "password123", "Demo Owner", "Mebel House CRM", seed=True
+        )
+    access_token = create_access_token(user.id)
+    return Token(access_token=access_token, token_type="bearer")
+
+
+
 @router.post("/auth/logout")
 def logout() -> dict[str, str]:
     return {"status": "ok"}
+
 
 
 # DASHBOARD (Isolated via get_tenant_db RLS and business_id parameter)
