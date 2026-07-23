@@ -101,7 +101,7 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 - [ ] Access token AES-256-GCM bilan shifrlanib saqlanadi.
 - [ ] Token decrypt qilish faqat server-side service orqali bajariladi.
 - [ ] Token expiry va reconnect holati ishlaydi.
-- [ ] Webhook GET verification production token bilan ishlaydi.
+- [x] Webhook GET verification production token bilan ishlaydi.
 - [ ] Webhook POST body `X-Hub-Signature-256` orqali HMAC-SHA256 tekshiriladi.
 - [ ] Noto'g'ri signature 401/403 bilan rad etiladi.
 - [ ] Meta comment eventlari real payload formatidan parse qilinadi.
@@ -131,32 +131,32 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 ## 7. AI sales assistant
 
 - [ ] AI provider abstraction yaratildi.
-- [ ] Groq provider server-side ulanadi.
-- [ ] Model nomi environment/config orqali boshqariladi.
+- [x] Groq provider server-side ulanadi.
+- [x] Model nomi environment/config orqali boshqariladi.
 - [ ] Prompt faqat campaign/product ma'lumotlari bilan tuziladi.
 - [ ] AI narx yoki productni taxmin qilmaydi.
 - [ ] Conversation tarixi AI context sifatida uzatiladi.
 - [ ] Mijozga qisqa va sotuvga yo'naltirilgan javob beriladi.
 - [ ] AI email va manzil so'ramaydi.
 - [ ] Ism ajratib olish ishlaydi.
-- [ ] O'zbekiston telefon raqamini ajratib olish va normalizatsiya ishlaydi.
+- [x] O'zbekiston telefon raqamini ajratib olish va normalizatsiya ishlaydi.
 - [ ] Ism yoki telefon yetishmasa, AI faqat kerakli ma'lumotni so'raydi.
 - [ ] Ism va telefon to'liq bo'lsa, lead yaratish event yuboriladi.
-- [ ] AI timeout, provider error va fallback holatlari qayta ishlanadi.
+- [x] AI timeout, provider error va fallback holatlari qayta ishlanadi.
 - [ ] Prompt injection va noma'lum product savollariga guardrail qo'shildi.
 - [ ] Real test conversation bilan AI flow tasdiqlandi.
 
 ## 8. CRM leads va conversations
 
 - [ ] Webhook yoki DM flow’dan real lead yaratiladi.
-- [ ] Lead business, Instagram user, product va campaign bilan bog'lanadi.
+- [x] Lead business, Instagram user, product va campaign bilan bog'lanadi.
 - [ ] Lead statuslari TZ bilan bir xil qilindi.
-- [ ] Lead statusini o'zgartirish endpointi database bilan ishlaydi.
+- [x] Lead statusini o'zgartirish endpointi database bilan ishlaydi.
 - [ ] Lead qidirish ishlaydi.
 - [ ] Product, campaign va status bo'yicha filterlar ishlaydi.
-- [ ] Conversation va message tarixi saqlanadi.
+- [x] Conversation va message tarixi saqlanadi.
 - [ ] CRM lead sahifasida conversation tarixi ko'rinadi.
-- [ ] Dashboard latest leads real ma'lumotdan ko'rsatiladi.
+- [x] Dashboard latest leads real ma'lumotdan ko'rsatiladi.
 - [ ] Lead duplicate yaratishdan himoya qilindi.
 
 ## 9. Telegram integration
@@ -199,12 +199,12 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 12. Testlar
 
-- [ ] Keyword normalization unit testlari yozildi.
-- [ ] Phone extraction unit testlari yozildi.
+- [x] Keyword normalization unit testlari yozildi.
+- [x] Phone extraction unit testlari yozildi.
 - [ ] Crypto encrypt/decrypt testlari yozildi.
-- [ ] Auth register/login/middleware testlari yozildi.
-- [ ] Tenant isolation testlari yozildi.
-- [ ] Product va campaign CRUD integration testlari yozildi.
+- [x] Auth register/login/middleware testlari yozildi.
+- [x] Tenant isolation testlari yozildi.
+- [x] Product va campaign CRUD integration testlari yozildi.
 - [ ] Duplicate keyword validation test qilindi.
 - [ ] Webhook verification testlari yozildi.
 - [ ] Webhook signature valid/invalid testlari yozildi.
@@ -212,7 +212,7 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 - [ ] Lead extraction test qilindi.
 - [ ] Telegram notification test qilindi.
 - [ ] Excel/PDF export testlari yozildi.
-- [ ] Frontend typecheck va build o'tadi.
+- [x] Frontend typecheck va build o'tadi.
 - [ ] Frontend API error/loading holatlari test qilindi.
 - [ ] Eski `index.html`/`app.js` testlari yangilandi yoki olib tashlandi.
 - [ ] End-to-end test: Instagram comment → DM → AI → lead → Telegram o'tadi.
