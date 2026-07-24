@@ -1006,8 +1006,8 @@ function LeadTable({ c, leads, onUpdateStatus }: { c: typeof copy[Lang]; leads: 
             <tr key={lead.id}>
               <td data-label={c.table.customer}><strong>{lead.customer_name}</strong></td>
               <td data-label={c.table.phone}><code>{lead.phone}</code></td>
-              <td>@{lead.instagram_username}</td>
-              <td style={{ maxWidth: "300px", fontSize: "0.85rem" }}>{lead.ai_summary || "Izoh yo'q"}</td>
+              <td data-label="Instagram">@{lead.instagram_username}</td>
+              <td data-label="AI Summary" style={{ maxWidth: "300px", fontSize: "0.85rem" }}>{lead.ai_summary || "Izoh yo'q"}</td>
               <td data-label={c.table.status}>
                 <select
                   value={lead.status}
