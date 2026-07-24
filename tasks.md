@@ -189,9 +189,9 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 - [ ] CORS faqat kerakli production originlarga cheklanadi.
 - [ ] API rate limiting qo'shildi.
 - [ ] Webhook request size va timeout limitlari qo'shildi.
-- [ ] Audit loglar muhim auth, integration va data o'zgarishlarini yozadi.
+- [x] Audit loglar muhim auth, integration va data o'zgarishlarini yozadi.
 - [ ] Sensitive tokenlar loglarga chiqmasligi tekshirildi.
-- [ ] Health endpoint database va Redis holatini ham tekshiradi.
+- [x] Health endpoint database va Redis holatini ham tekshiradi.
 - [ ] Structured application logging qo'shildi.
 - [ ] Error response formatlari bir xil qilindi.
 - [ ] Backup va restore jarayoni hujjatlashtirildi.

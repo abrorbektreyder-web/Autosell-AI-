@@ -72,6 +72,28 @@ async def get_current_business_id(
     return current_user.business_id
 
 
+async def get_current_superadmin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Guards the /admin endpoints, which read across every tenant.
+
+    Access is granted only to users whose role is 'superadmin' or whose email is
+    listed in SUPERADMIN_EMAILS. That list is empty unless a deployment sets it,
+    so platform-wide data is never exposed by default.
+    """
+    from app.core.config import settings
+
+    allowed_emails = {email.strip().lower() for email in settings.superadmin_emails if email.strip()}
+    is_superadmin = current_user.role == "superadmin" or current_user.email.lower() in allowed_emails
+
+    if not is_superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required. Set SUPERADMIN_EMAILS to grant it.",
+        )
+    return current_user
+
+
 async def get_tenant_db(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

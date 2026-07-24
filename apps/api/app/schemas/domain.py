@@ -128,6 +128,57 @@ class DashboardSummary(BaseModel):
     ai_conversations: int
 
 
+class PlatformOverview(BaseModel):
+    total_businesses: int
+    new_businesses_30d: int
+    total_leads: int
+    leads_30d: int
+    leads_growth_pct: int | None = None
+    total_products: int
+    total_campaigns: int
+    total_conversations: int
+    connected_instagram: int
+    connected_telegram: int
+
+
+class BusinessSummary(BaseModel):
+    id: str
+    business_name: str
+    owner_email: str
+    status: str
+    leads: int
+    products: int
+    campaigns: int
+    instagram_connected: bool
+    telegram_connected: bool
+    created_at: datetime
+
+
+class HealthCheck(BaseModel):
+    component: str
+    status: Literal["ok", "warning", "not_configured", "error"]
+    detail: str
+    latency_ms: float | None = None
+
+
+class SystemHealth(BaseModel):
+    checks: list[HealthCheck]
+    health_score: int
+    overall: Literal["ok", "degraded", "error"]
+    uptime_seconds: int
+    environment: str
+    checked_at: datetime
+
+
+class AuditEntry(BaseModel):
+    id: str
+    business_name: str
+    action: str
+    entity_type: str
+    entity_id: str | None = None
+    created_at: datetime
+
+
 class UserRegister(BaseModel):
     email: str
     password: str

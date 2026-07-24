@@ -4,12 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token
-from app.api.deps import get_tenant_db, get_current_user
+from app.api.deps import get_tenant_db, get_current_user, get_current_superadmin
 from app.models import User as DBUser
 from app.schemas.domain import (
+    AuditEntry,
+    BusinessSummary,
     Campaign,
     CampaignCreate,
     DashboardSummary,
+    PlatformOverview,
+    SystemHealth,
     InstagramSettings as InstagramSettingsSchema,
     InstagramSettingsInput,
     InstagramWebhookEvent,
@@ -27,6 +31,7 @@ from app.services import db_repository
 from app.services.ai_sales import build_first_reply
 from app.services.crypto import decrypt_secret, encrypt_secret
 from app.services.instagram import InstagramAPIError, verify_instagram_token, verify_webhook_signature
+from app.services.system_health import collect_system_health
 from app.services.telegram import format_lead_notification
 
 router = APIRouter()
@@ -184,6 +189,15 @@ async def create_product(
     current_user: DBUser = Depends(get_current_user),
 ) -> Product:
     product = await db_repository.create_product(db, current_user.business_id, payload)
+    await db_repository.record_audit(
+        db,
+        current_user.business_id,
+        action="Mahsulot yaratildi",
+        entity_type="product",
+        actor_user_id=current_user.id,
+        entity_id=str(product.id),
+        metadata={"name": product.name},
+    )
     return map_product_to_pydantic(product)
 
 
@@ -235,6 +249,14 @@ async def delete_product(
     success = await db_repository.delete_product(db, current_user.business_id, product_uuid)
     if not success:
         raise HTTPException(status_code=404, detail="Product not found")
+    await db_repository.record_audit(
+        db,
+        current_user.business_id,
+        action="Mahsulot o'chirildi",
+        entity_type="product",
+        actor_user_id=current_user.id,
+        entity_id=product_id,
+    )
     return {"status": "inactive"}
 
 
@@ -257,6 +279,15 @@ async def create_campaign(
     try:
         campaign = await db_repository.create_campaign(
             db, current_user.business_id, payload
+        )
+        await db_repository.record_audit(
+            db,
+            current_user.business_id,
+            action="Kampaniya yaratildi",
+            entity_type="campaign",
+            actor_user_id=current_user.id,
+            entity_id=str(campaign.id),
+            metadata={"keyword": campaign.keyword if hasattr(campaign, "keyword") else ""},
         )
         return map_campaign_to_pydantic(campaign)
     except ValueError as e:
@@ -401,6 +432,15 @@ async def save_instagram_settings(
         page_id=payload.page_id,
         instagram_username=verified.get("instagram_username"),
         token_status="active",
+    )
+    await db_repository.record_audit(
+        db,
+        current_user.business_id,
+        action="Instagram akkaunti ulandi",
+        entity_type="instagram_account",
+        actor_user_id=current_user.id,
+        entity_id=account.instagram_account_id,
+        metadata={"username": account.instagram_username},
     )
     return InstagramSettingsSchema(
         instagram_account_id=account.instagram_account_id,
@@ -622,3 +662,50 @@ def get_export(export_id: str) -> dict[str, str]:
 @router.get("/exports/{export_id}/download")
 def download_export(export_id: str) -> dict[str, str]:
     return {"id": export_id, "download_url": "/exports/export-demo.xlsx"}
+
+
+# PLATFORM ADMIN
+# These read across every tenant, so they sit behind get_current_superadmin,
+# which denies everyone unless SUPERADMIN_EMAILS is configured.
+@router.get("/admin/overview", response_model=PlatformOverview)
+async def admin_overview(
+    db: AsyncSession = Depends(get_db),
+    _: DBUser = Depends(get_current_superadmin),
+) -> PlatformOverview:
+    return PlatformOverview(**await db_repository.get_platform_overview(db))
+
+
+@router.get("/admin/businesses", response_model=list[BusinessSummary])
+async def admin_businesses(
+    db: AsyncSession = Depends(get_db),
+    _: DBUser = Depends(get_current_superadmin),
+) -> list[BusinessSummary]:
+    return [BusinessSummary(**row) for row in await db_repository.list_all_businesses(db)]
+
+
+@router.get("/admin/system", response_model=SystemHealth)
+async def admin_system_health(
+    db: AsyncSession = Depends(get_db),
+    _: DBUser = Depends(get_current_superadmin),
+) -> SystemHealth:
+    return SystemHealth(**await collect_system_health(db))
+
+
+@router.get("/admin/audit", response_model=list[AuditEntry])
+async def admin_audit(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _: DBUser = Depends(get_current_superadmin),
+) -> list[AuditEntry]:
+    rows = await db_repository.list_audit_logs(db, limit=limit)
+    return [
+        AuditEntry(
+            id=str(log.id),
+            business_name=business_name,
+            action=log.action,
+            entity_type=log.entity_type,
+            entity_id=log.entity_id,
+            created_at=log.created_at,
+        )
+        for log, business_name in rows
+    ]

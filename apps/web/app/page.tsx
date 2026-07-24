@@ -32,11 +32,15 @@ import {
 } from "lucide-react";
 import {
   api,
+  AdminData,
+  AuditEntry,
+  BusinessSummary,
   Campaign as APICampaign,
   DashboardSummary,
   InstagramSettings,
   Lead as APILead,
   Product as APIProduct,
+  SystemHealth,
   TelegramSettings,
 } from "../lib/api";
 
@@ -46,15 +50,6 @@ type Lang = "en" | "uz" | "ru";
 type OwnerView = "Command" | "Leads" | "Conversations" | "Products" | "Campaigns" | "Integrations" | "AI Rules";
 type AdminView = "Platform" | "Businesses" | "System Health" | "Audit";
 type View = OwnerView | AdminView;
-
-type Business = {
-  name: string;
-  owner: string;
-  plan: string;
-  leads: number;
-  health: string;
-  status: string;
-};
 
 const ownerNav = [
   { label: "Command", icon: Gauge },
@@ -185,8 +180,6 @@ const copy = {
     adminHeroText: "Super admin sees businesses, plan status, webhook health, delivery quality and security events without entering tenant dashboards.",
     platform: "Platform",
     healthScore: "health score",
-    healthItems: ["API latency 124ms", "Redis dedupe active", "Postgres healthy", "Telegram queue normal"],
-    auditItems: ["Token rotated for Mebel House", "Webhook verify token checked", "Admin viewed tenant health"],
   },
   uz: {
     langName: "O'zbek",
@@ -299,8 +292,6 @@ const copy = {
     adminHeroText: "Super admin tenant dashboardiga kirmasdan bizneslar, plan status, webhook health, delivery quality va security eventlarni ko'radi.",
     platform: "Platforma",
     healthScore: "health score",
-    healthItems: ["API latency 124ms", "Redis dedupe active", "Postgres sog'lom", "Telegram queue normal"],
-    auditItems: ["Mebel House tokeni rotatsiya qilindi", "Webhook verify token tekshirildi", "Admin tenant health ko'rdi"],
   },
   ru: {
     langName: "Русский",
@@ -413,8 +404,6 @@ const copy = {
     adminHeroText: "Super admin видит businesses, plan status, webhook health, delivery quality и security events без входа в tenant dashboard.",
     platform: "Платформа",
     healthScore: "health score",
-    healthItems: ["API latency 124ms", "Redis dedupe active", "Postgres healthy", "Telegram queue normal"],
-    auditItems: ["Token rotated для Mebel House", "Webhook verify token проверен", "Admin посмотрел tenant health"],
   },
 } satisfies Record<Lang, Record<string, unknown>>;
 
@@ -423,16 +412,6 @@ const languageOptions: { value: Lang; label: string }[] = [
   { value: "uz", label: "O'zbek" },
   { value: "ru", label: "Русский" },
 ];
-
-function getBusinesses(lang: Lang): Business[] {
-  const c = copy[lang];
-  return [
-    { name: "Mebel House", owner: "owner@mebel.uz", plan: "Pro", leads: 384, health: "98%", status: c.statuses.live },
-    { name: "Office Line", owner: "admin@office.uz", plan: "Starter", leads: 91, health: "91%", status: c.statuses.live },
-    { name: "Kitchen Studio", owner: "sales@kitchen.uz", plan: "Pro", leads: 144, health: "84%", status: c.statuses.watch },
-    { name: "Demo Tenant", owner: "demo@example.com", plan: "Trial", leads: 12, health: "62%", status: c.statuses.paused },
-  ];
-}
 
 export default function Home() {
   const [role, setRole] = useState<Role>("owner");
@@ -449,6 +428,9 @@ export default function Home() {
   const [leads, setLeads] = useState<APILead[]>([]);
   const [telegram, setTelegram] = useState<TelegramSettings | null>(null);
   const [instagram, setInstagram] = useState<InstagramSettings | null>(null);
+  const [admin, setAdmin] = useState<AdminData>(null);
+  // null = hali tekshirilmadi, true = superadmin ruxsati yo'q
+  const [adminDenied, setAdminDenied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -460,7 +442,6 @@ export default function Home() {
 
   const c = copy[lang];
   const activeNav = role === "owner" ? ownerNav : adminNav;
-  const businesses = useMemo(() => getBusinesses(lang), [lang]);
 
   // Load real data from FastAPI backend
   useEffect(() => {
@@ -482,6 +463,22 @@ export default function Home() {
         setLeads(leadData);
         setTelegram(tgData);
         setInstagram(igData);
+
+        // Platforma paneli barcha tenantlarni ko'rsatadi, shuning uchun backend
+        // superadmin ruxsatini talab qiladi. Ruxsat bo'lmasa 403 qaytadi.
+        try {
+          const [overview, businessList, system, audit] = await Promise.all([
+            api.getAdminOverview(),
+            api.getAdminBusinesses(),
+            api.getAdminSystem(),
+            api.getAdminAudit(),
+          ]);
+          setAdmin({ overview, businesses: businessList, system, audit });
+          setAdminDenied(false);
+        } catch {
+          setAdmin(null);
+          setAdminDenied(true);
+        }
       } catch (err: any) {
         setErrorMsg(err.message || "Backend bilan ulanishda xatolik");
       } finally {
@@ -498,10 +495,17 @@ export default function Home() {
     [leads, query]
   );
 
-  const filteredBusinesses = useMemo(
-    () => businesses.filter((b) => Object.values(b).join(" ").toLowerCase().includes(query.toLowerCase())),
-    [businesses, query]
-  );
+  // Qidiruv platforma panelidagi haqiqiy tenantlar ro'yxatiga qo'llanadi.
+  const filteredAdmin = useMemo<AdminData>(() => {
+    if (!admin || !query.trim()) return admin;
+    const q = query.toLowerCase();
+    return {
+      ...admin,
+      businesses: admin.businesses.filter((b) =>
+        `${b.business_name} ${b.owner_email} ${b.status}`.toLowerCase().includes(q)
+      ),
+    };
+  }, [admin, query]);
 
   function switchRole(nextRole: Role) {
     setRole(nextRole);
@@ -636,7 +640,7 @@ export default function Home() {
             }}
           />
         ) : (
-          <AdminDashboard c={c} view={view as AdminView} businesses={filteredBusinesses} />
+          <AdminDashboard c={c} view={view as AdminView} admin={filteredAdmin} />
         )}
       </section>
 
@@ -837,10 +841,30 @@ function OwnerDashboard({
   );
 }
 
-function AdminDashboard({ c, view, businesses }: { c: typeof copy[Lang]; view: AdminView; businesses: Business[] }) {
-  if (view === "Businesses") return <BusinessBoard c={c} businesses={businesses} />;
-  if (view === "System Health") return <SystemHealthBoard c={c} />;
-  if (view === "Audit") return <AuditBoard c={c} />;
+function AdminDashboard({ c, view, admin }: { c: typeof copy[Lang]; view: AdminView; admin: AdminData }) {
+  if (view === "Businesses") return <BusinessBoard c={c} admin={admin} />;
+  if (view === "System Health") return <SystemHealthBoard c={c} admin={admin} />;
+  if (view === "Audit") return <AuditBoard c={c} admin={admin} />;
+
+  if (!admin) {
+    return (
+      <>
+        <section className="adminHero">
+          <div>
+            <span className="softBadge"><Activity size={14} /> {c.adminHeroBadge}</span>
+            <h2>{c.adminHeroTitle}</h2>
+            <p>{c.adminHeroText}</p>
+          </div>
+        </section>
+        <section className="singleColumn"><AdminLocked c={c} /></section>
+      </>
+    );
+  }
+
+  const { overview, system } = admin;
+  const growth = overview.leads_growth_pct;
+  const failing = system.checks.filter((check) => check.status === "error").length;
+
   return (
     <>
       <section className="adminHero">
@@ -851,22 +875,42 @@ function AdminDashboard({ c, view, businesses }: { c: typeof copy[Lang]; view: A
         </div>
         <div className="radialScore" aria-label={c.healthScore}>
           <span>{c.platform}</span>
-          <strong>98</strong>
+          <strong>{system.health_score}</strong>
           <small>{c.healthScore}</small>
         </div>
       </section>
       <MetricGrid
         items={[
-          { label: c.metrics.businesses, value: "14", delta: `+3 ${c.metrics.thisMonth}`, icon: Building2 },
-          { label: c.metrics.totalLeads, value: "8.4k", delta: "+22%", icon: UsersRound },
-          { label: c.metrics.webhookUptime, value: "99.9%", delta: c.metrics.stable, icon: Activity },
-          { label: c.metrics.securityAlerts, value: "0", delta: c.metrics.healthy, icon: ShieldCheck },
+          {
+            label: c.metrics.businesses,
+            value: String(overview.total_businesses),
+            delta: `+${overview.new_businesses_30d} (30 kun)`,
+            icon: Building2,
+          },
+          {
+            label: c.metrics.totalLeads,
+            value: String(overview.total_leads),
+            delta: growth === null ? `+${overview.leads_30d} (30 kun)` : `${growth > 0 ? "+" : ""}${growth}%`,
+            icon: UsersRound,
+          },
+          {
+            label: "Kampaniyalar",
+            value: String(overview.total_campaigns),
+            delta: `${overview.total_products} mahsulot`,
+            icon: Activity,
+          },
+          {
+            label: "Ishlamayotgan servis",
+            value: String(failing),
+            delta: failing === 0 ? c.metrics.healthy : "tekshirish kerak",
+            icon: ShieldCheck,
+          },
         ]}
       />
       <section className="contentGrid">
-        <BusinessPanel c={c} businesses={businesses} />
-        <SystemPanel c={c} />
-        <AuditPanel c={c} />
+        <BusinessPanel c={c} businesses={admin.businesses} />
+        <SystemPanel c={c} system={system} />
+        <AuditPanel c={c} audit={admin.audit} />
         <TenantFlowPanel c={c} />
       </section>
     </>
@@ -1361,24 +1405,62 @@ function AIRulesBoard({ c }: { c: typeof copy[Lang] }) {
   );
 }
 
-function BusinessPanel({ c, businesses }: { c: typeof copy[Lang]; businesses: Business[] }) {
+function AdminLocked({ c }: { c: typeof copy[Lang] }) {
   return (
     <article className="panel wide">
-      <PanelHead label={c.panels.tenants} title={c.panels.businessAccounts} action={c.panels.openAll} />
+      <PanelHead label={c.panels.tenants} title="Platforma ma'lumotlari yopiq" action="" />
+      <div style={{ display: "grid", gap: "10px", marginTop: "1rem", maxWidth: "34rem" }}>
+        <p style={{ fontSize: "0.92rem", lineHeight: 1.6 }}>
+          Bu bo'lim barcha bizneslarning ma'lumotini ko'rsatadi, shuning uchun u
+          alohida ruxsat talab qiladi va sukut bo'yicha hech kimga ochiq emas.
+        </p>
+        <p style={{ fontSize: "0.9rem" }}>
+          Yoqish uchun API muhitiga quyidagini qo'shing va servisni qayta ishga tushiring:
+        </p>
+        <code style={{ display: "block", padding: "10px 12px", borderRadius: "6px", background: "rgba(255,255,255,0.06)", fontSize: "0.82rem", overflowX: "auto" }}>
+          SUPERADMIN_EMAILS=[&quot;sizning@email.uz&quot;]
+        </code>
+      </div>
+    </article>
+  );
+}
+
+function AdminEmpty({ label, title, text }: { label: string; title: string; text: string }) {
+  return (
+    <article className="panel">
+      <PanelHead label={label} title={title} action="" />
+      <p style={{ fontSize: "0.9rem", marginTop: "0.8rem", lineHeight: 1.6 }}>{text}</p>
+    </article>
+  );
+}
+
+function BusinessPanel({ c, businesses }: { c: typeof copy[Lang]; businesses: BusinessSummary[] }) {
+  return (
+    <article className="panel wide">
+      <PanelHead label={c.panels.tenants} title={c.panels.businessAccounts} action={`${businesses.length} ta`} />
       <div className="tableWrap">
         <table>
           <thead>
-            <tr><th>{c.table.business}</th><th>{c.table.owner}</th><th>{c.table.plan}</th><th>{c.table.leads}</th><th>{c.table.health}</th><th>{c.table.status}</th></tr>
+            <tr>
+              <th>{c.table.business}</th><th>{c.table.owner}</th><th>Mahsulot</th>
+              <th>Kampaniya</th><th>{c.table.leads}</th><th>Integratsiya</th><th>{c.table.status}</th>
+            </tr>
           </thead>
           <tbody>
-            {businesses.map((business, index) => (
-              <tr key={business.name}>
-                <td data-label={c.table.business}><strong>{business.name}</strong><span>{c.table.tenantWorkspace}</span></td>
-                <td data-label={c.table.owner}>{business.owner}</td>
-                <td data-label={c.table.plan}>{business.plan}</td>
+            {businesses.map((business) => (
+              <tr key={business.id}>
+                <td data-label={c.table.business}><strong>{business.business_name}</strong><span>{c.table.tenantWorkspace}</span></td>
+                <td data-label={c.table.owner}>{business.owner_email}</td>
+                <td data-label="Mahsulot">{business.products}</td>
+                <td data-label="Kampaniya">{business.campaigns}</td>
                 <td data-label={c.table.leads}>{business.leads}</td>
-                <td data-label={c.table.health}>{business.health}</td>
-                <td data-label={c.table.status}><span className={index < 2 ? "statusPill success" : "statusPill"}>{business.status}</span></td>
+                <td data-label="Integratsiya">
+                  {[business.instagram_connected ? "Instagram" : null, business.telegram_connected ? "Telegram" : null]
+                    .filter(Boolean).join(", ") || "—"}
+                </td>
+                <td data-label={c.table.status}>
+                  <span className={business.status === "active" ? "statusPill success" : "statusPill"}>{business.status}</span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1388,30 +1470,67 @@ function BusinessPanel({ c, businesses }: { c: typeof copy[Lang]; businesses: Bu
   );
 }
 
-function BusinessBoard({ c, businesses }: { c: typeof copy[Lang]; businesses: Business[] }) {
-  return <section className="singleColumn"><BusinessPanel c={c} businesses={businesses} /></section>;
+function BusinessBoard({ c, admin }: { c: typeof copy[Lang]; admin: AdminData }) {
+  return (
+    <section className="singleColumn">
+      {admin ? <BusinessPanel c={c} businesses={admin.businesses} /> : <AdminLocked c={c} />}
+    </section>
+  );
 }
 
-function SystemPanel({ c }: { c: typeof copy[Lang] }) {
+const HEALTH_TONE: Record<string, { color: string; label: string }> = {
+  ok: { color: "#10b981", label: "ishlayapti" },
+  warning: { color: "#f59e0b", label: "diqqat" },
+  not_configured: { color: "#9ca3af", label: "sozlanmagan" },
+  error: { color: "#ef4444", label: "xato" },
+};
+
+function SystemPanel({ c, system }: { c: typeof copy[Lang]; system: SystemHealth | null }) {
+  if (!system) {
+    return <AdminEmpty label={c.panels.system} title={c.panels.runtimeHealth} text="Tizim holatini ko'rish uchun superadmin ruxsati kerak." />;
+  }
   return (
     <article className="panel">
-      <PanelHead label={c.panels.system} title={c.panels.runtimeHealth} action={c.panels.inspect} />
+      <PanelHead label={c.panels.system} title={c.panels.runtimeHealth} action={`${system.health_score}%`} />
       <div className="healthStack">
-        {c.healthItems.map((item) => (
-          <div key={item}><CheckCircle2 size={16} /><span>{item}</span></div>
-        ))}
+        {system.checks.map((check) => {
+          const tone = HEALTH_TONE[check.status] ?? HEALTH_TONE.not_configured;
+          return (
+            <div key={check.component}>
+              <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: "50%", background: tone.color, flexShrink: 0 }} />
+              <span>
+                <strong style={{ fontWeight: 600 }}>{check.component}</strong>
+                {" — "}
+                <span style={{ color: tone.color }}>{tone.label}</span>
+                {check.detail ? <span style={{ opacity: 0.75 }}>{` (${check.detail})`}</span> : null}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </article>
   );
 }
 
-function AuditPanel({ c }: { c: typeof copy[Lang] }) {
+function AuditPanel({ c, audit }: { c: typeof copy[Lang]; audit: AuditEntry[] | null }) {
+  if (!audit) {
+    return <AdminEmpty label={c.panels.audit} title={c.panels.securityEvents} text="Audit izlarini ko'rish uchun superadmin ruxsati kerak." />;
+  }
+  if (audit.length === 0) {
+    return <AdminEmpty label={c.panels.audit} title={c.panels.securityEvents} text="Hali audit yozuvi yo'q. Mahsulot yoki kampaniya yaratsangiz, bu yerda ko'rinadi." />;
+  }
   return (
     <article className="panel">
-      <PanelHead label={c.panels.audit} title={c.panels.securityEvents} action={c.panels.viewLog} />
+      <PanelHead label={c.panels.audit} title={c.panels.securityEvents} action={`${audit.length} ta`} />
       <div className="auditList">
-        {c.auditItems.map((item) => (
-          <div key={item}><ShieldCheck size={16} /><span>{item}</span></div>
+        {audit.map((entry) => (
+          <div key={entry.id}>
+            <ShieldCheck size={16} />
+            <span>
+              {entry.action}
+              <span style={{ opacity: 0.7 }}>{` — ${entry.business_name}, ${new Date(entry.created_at).toLocaleString("uz-UZ")}`}</span>
+            </span>
+          </div>
         ))}
       </div>
     </article>
@@ -1427,12 +1546,12 @@ function TenantFlowPanel({ c }: { c: typeof copy[Lang] }) {
   );
 }
 
-function SystemHealthBoard({ c }: { c: typeof copy[Lang] }) {
-  return <section className="contentGrid"><SystemPanel c={c} /><TenantFlowPanel c={c} /></section>;
+function SystemHealthBoard({ c, admin }: { c: typeof copy[Lang]; admin: AdminData }) {
+  return <section className="contentGrid"><SystemPanel c={c} system={admin?.system ?? null} /><TenantFlowPanel c={c} /></section>;
 }
 
-function AuditBoard({ c }: { c: typeof copy[Lang] }) {
-  return <section className="contentGrid"><AuditPanel c={c} /><SystemPanel c={c} /></section>;
+function AuditBoard({ c, admin }: { c: typeof copy[Lang]; admin: AdminData }) {
+  return <section className="contentGrid"><AuditPanel c={c} audit={admin?.audit ?? null} /><SystemPanel c={c} system={admin?.system ?? null} /></section>;
 }
 
 function PanelHead({ label, title, action }: { label: string; title: string; action: string }) {

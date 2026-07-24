@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     groq_api_key: str = ""
     ai_model: str = "llama-3.3-70b-versatile"
+    # Platform-wide admin access. Empty by default: the /admin endpoints expose
+    # every tenant, so access must be granted deliberately per deployment.
+    superadmin_emails: list[str] = []
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

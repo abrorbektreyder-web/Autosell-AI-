@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.core.security import get_password_hash
 
 from app.models import (
+    AuditLog,
     Business,
     Campaign,
     CampaignKeyword,
@@ -614,4 +615,133 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
         select(User).filter(func.lower(User.email) == email.lower())
     )
     return result.scalar_one_or_none()
+
+
+# AUDIT LOG
+async def record_audit(
+    db: AsyncSession,
+    business_id: UUID,
+    action: str,
+    entity_type: str,
+    actor_user_id: UUID | None = None,
+    entity_id: str | None = None,
+    metadata: dict | None = None,
+) -> None:
+    """Append an audit entry. Never raises: auditing must not break the action it records."""
+    try:
+        db.add(
+            AuditLog(
+                business_id=business_id,
+                actor_user_id=actor_user_id,
+                action=action,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                log_metadata=metadata or {},
+            )
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
+
+async def list_audit_logs(db: AsyncSession, limit: int = 20) -> list[tuple[AuditLog, str]]:
+    """Recent audit entries across every tenant, with the business name attached."""
+    result = await db.execute(
+        select(AuditLog, Business.business_name)
+        .join(Business, Business.id == AuditLog.business_id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
+    return [(row[0], row[1]) for row in result.all()]
+
+
+# PLATFORM ADMIN (cross-tenant)
+async def get_platform_overview(db: AsyncSession) -> dict:
+    """Real counts across the whole platform — no hardcoded figures."""
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+
+    async def count(model, *filters):
+        stmt = select(func.count()).select_from(model)
+        for f in filters:
+            stmt = stmt.filter(f)
+        return (await db.execute(stmt)).scalar_one()
+
+    total_businesses = await count(Business)
+    new_businesses = await count(Business, Business.created_at >= since)
+    total_leads = await count(Lead)
+    leads_30d = await count(Lead, Lead.created_at >= since)
+    prev_leads = await count(
+        Lead, Lead.created_at >= since - timedelta(days=30), Lead.created_at < since
+    )
+    growth = round((leads_30d - prev_leads) / prev_leads * 100) if prev_leads else None
+
+    return {
+        "total_businesses": total_businesses,
+        "new_businesses_30d": new_businesses,
+        "total_leads": total_leads,
+        "leads_30d": leads_30d,
+        "leads_growth_pct": growth,
+        "total_products": await count(Product),
+        "total_campaigns": await count(Campaign),
+        "total_conversations": await count(Conversation),
+        "connected_instagram": await count(
+            InstagramAccount, InstagramAccount.token_status == "active"
+        ),
+        "connected_telegram": await count(
+            TelegramSettings, TelegramSettings.notification_enabled.is_(True)
+        ),
+    }
+
+
+async def list_all_businesses(db: AsyncSession) -> list[dict]:
+    """Every tenant with its real lead / product / campaign counts."""
+    lead_counts = dict(
+        (await db.execute(select(Lead.business_id, func.count()).group_by(Lead.business_id))).all()
+    )
+    product_counts = dict(
+        (await db.execute(select(Product.business_id, func.count()).group_by(Product.business_id))).all()
+    )
+    campaign_counts = dict(
+        (await db.execute(select(Campaign.business_id, func.count()).group_by(Campaign.business_id))).all()
+    )
+    ig_ids = {
+        row[0]
+        for row in (
+            await db.execute(
+                select(InstagramAccount.business_id).filter(
+                    InstagramAccount.token_status == "active"
+                )
+            )
+        ).all()
+    }
+    tg_ids = {
+        row[0]
+        for row in (
+            await db.execute(
+                select(TelegramSettings.business_id).filter(
+                    TelegramSettings.notification_enabled.is_(True)
+                )
+            )
+        ).all()
+    }
+
+    businesses = (
+        await db.execute(select(Business).order_by(Business.created_at.desc()))
+    ).scalars().all()
+
+    return [
+        {
+            "id": str(b.id),
+            "business_name": b.business_name,
+            "owner_email": b.owner_email,
+            "status": b.status,
+            "leads": lead_counts.get(b.id, 0),
+            "products": product_counts.get(b.id, 0),
+            "campaigns": campaign_counts.get(b.id, 0),
+            "instagram_connected": b.id in ig_ids,
+            "telegram_connected": b.id in tg_ids,
+            "created_at": b.created_at,
+        }
+        for b in businesses
+    ]
 

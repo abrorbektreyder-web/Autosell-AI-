@@ -178,6 +178,64 @@ export type InstagramSettingsInput = {
   access_token: string;
 };
 
+export type PlatformOverview = {
+  total_businesses: number;
+  new_businesses_30d: number;
+  total_leads: number;
+  leads_30d: number;
+  leads_growth_pct: number | null;
+  total_products: number;
+  total_campaigns: number;
+  total_conversations: number;
+  connected_instagram: number;
+  connected_telegram: number;
+};
+
+export type BusinessSummary = {
+  id: string;
+  business_name: string;
+  owner_email: string;
+  status: string;
+  leads: number;
+  products: number;
+  campaigns: number;
+  instagram_connected: boolean;
+  telegram_connected: boolean;
+  created_at: string;
+};
+
+export type HealthCheck = {
+  component: string;
+  status: "ok" | "warning" | "not_configured" | "error";
+  detail: string;
+  latency_ms: number | null;
+};
+
+export type SystemHealth = {
+  checks: HealthCheck[];
+  health_score: number;
+  overall: "ok" | "degraded" | "error";
+  uptime_seconds: number;
+  environment: string;
+  checked_at: string;
+};
+
+export type AuditEntry = {
+  id: string;
+  business_name: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  created_at: string;
+};
+
+export type AdminData = {
+  overview: PlatformOverview;
+  businesses: BusinessSummary[];
+  system: SystemHealth;
+  audit: AuditEntry[];
+} | null;
+
 export type Message = {
   id: string;
   conversation_id: string;
@@ -229,6 +287,11 @@ export const api = {
     request<InstagramSettings>("/integrations/instagram", { method: "POST", body: JSON.stringify(data) }),
   testInstagram: () => request<{ status: string; instagram_username?: string }>("/integrations/instagram/test", { method: "POST" }),
   connectInstagram: () => request<{ status: string; oauth_url?: string; next?: string }>("/integrations/instagram/connect"),
+
+  getAdminOverview: () => request<PlatformOverview>("/admin/overview"),
+  getAdminBusinesses: () => request<BusinessSummary[]>("/admin/businesses"),
+  getAdminSystem: () => request<SystemHealth>("/admin/system"),
+  getAdminAudit: () => request<AuditEntry[]>("/admin/audit"),
 
   runTestWebhook: (commentText: string) =>
     request<{ status: string; campaign_id?: string; product_id?: string; private_reply_preview?: string; reason?: string }>(
