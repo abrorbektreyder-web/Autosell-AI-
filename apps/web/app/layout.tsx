@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Instagram AI Sales Bot CRM",
+  title: "Avtosell AI",
   description: "Comment-to-DM automation, AI sales conversations, CRM leads and Telegram notifications."
 };
 

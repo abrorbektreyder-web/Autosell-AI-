@@ -510,7 +510,7 @@ export default function Home() {
         <div className="brandLockup">
           <div className="brandGlyph"><Instagram size={20} /></div>
           <div>
-            <strong>InstaSales AI</strong>
+            <strong>Avtosell AI</strong>
             <span>{c.brandSubtitle}</span>
           </div>
         </div>
