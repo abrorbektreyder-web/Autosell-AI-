@@ -18,8 +18,15 @@ import app.models  # Loads all models
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set the sqlalchemy.url dynamically from settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Set the sqlalchemy.url dynamically from settings.
+# Alembic runs migrations synchronously (psycopg2), so normalise any
+# "postgres://" (Render/Heroku) to "postgresql://" and strip an async driver.
+_alembic_url = settings.database_url
+if _alembic_url.startswith("postgres://"):
+    _alembic_url = _alembic_url.replace("postgres://", "postgresql://", 1)
+_alembic_url = _alembic_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+# Escape '%' so ConfigParser interpolation does not choke on it.
+config.set_main_option("sqlalchemy.url", _alembic_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
