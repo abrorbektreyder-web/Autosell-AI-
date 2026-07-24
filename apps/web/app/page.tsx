@@ -1101,7 +1101,12 @@ function ProductsBoard({
         </button>
       </div>
       <div className="cardsGrid">
-        {products.map((product) => (
+        {products.map((product) => {
+          // Chegirma narxi - mijoz to'laydigan amaldagi narx; asosiy narx chizib ko'rsatiladi.
+          // Backend ham shu mantiqda ishlaydi (ai_sales: discount_price or price).
+          const discount = product.discount_price;
+          const hasDiscount = discount !== undefined && discount !== null && discount > 0 && discount < product.price;
+          return (
           <article className="panel productCard" key={product.id} style={{ position: "relative" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <Package size={24} style={{ color: "#6366f1" }} />
@@ -1112,8 +1117,8 @@ function ProductsBoard({
             </div>
             <strong style={{ fontSize: "1.2rem", marginTop: "8px" }}>{product.name}</strong>
             <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "#10b981" }}>
-              {product.price.toLocaleString()} UZS
-              {product.discount_price ? <small style={{ textDecoration: "line-through", color: "#9ca3af", marginLeft: "8px" }}>{product.discount_price.toLocaleString()} UZS</small> : null}
+              {(hasDiscount ? discount : product.price).toLocaleString()} UZS
+              {hasDiscount ? <small style={{ textDecoration: "line-through", color: "#9ca3af", marginLeft: "8px" }}>{product.price.toLocaleString()} UZS</small> : null}
             </span>
             <p style={{ marginTop: "8px", fontSize: "0.9rem", color: "#d1d5db" }}>{product.description}</p>
             {product.delivery_info && (
@@ -1127,7 +1132,8 @@ function ProductsBoard({
               </div>
             )}
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -1620,7 +1626,7 @@ function CampaignModal({ products, onClose, onSave }: { products: APIProduct[]; 
             <span style={{ fontSize: "0.85rem" }}>Bog'lanadigan Mahsulot:</span>
             <select required value={productId} onChange={(e) => setProductId(e.target.value)} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #45475a", background: "#11111b", color: "#fff" }}>
               {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.price.toLocaleString()} UZS)</option>
+                <option key={p.id} value={p.id}>{p.name} ({(p.discount_price && p.discount_price < p.price ? p.discount_price : p.price).toLocaleString()} UZS)</option>
               ))}
             </select>
           </label>
