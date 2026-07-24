@@ -93,17 +93,17 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 ## 5. Instagram Meta integration
 
-- [ ] Meta App ID, App Secret va redirect URL environment orqali sozlandi.
-- [ ] Instagram OAuth connect endpointi Meta login URL beradi.
+- [x] Meta App ID, App Secret va redirect URL environment orqali sozlandi.
+- [x] Instagram OAuth connect endpointi Meta login URL beradi.
 - [ ] OAuth callback code’ni token bilan almashtiradi.
 - [ ] Instagram Business/Creator account ma'lumotlari olinadi.
-- [ ] Instagram account va page ma'lumotlari databasega saqlanadi.
-- [ ] Access token AES-256-GCM bilan shifrlanib saqlanadi.
-- [ ] Token decrypt qilish faqat server-side service orqali bajariladi.
+- [x] Instagram account va page ma'lumotlari databasega saqlanadi.
+- [x] Access token AES-256-GCM bilan shifrlanib saqlanadi.
+- [x] Token decrypt qilish faqat server-side service orqali bajariladi.
 - [ ] Token expiry va reconnect holati ishlaydi.
 - [x] Webhook GET verification production token bilan ishlaydi.
-- [ ] Webhook POST body `X-Hub-Signature-256` orqali HMAC-SHA256 tekshiriladi.
-- [ ] Noto'g'ri signature 401/403 bilan rad etiladi.
+- [x] Webhook POST body `X-Hub-Signature-256` orqali HMAC-SHA256 tekshiriladi.
+- [x] Noto'g'ri signature 401/403 bilan rad etiladi.
 - [ ] Meta comment eventlari real payload formatidan parse qilinadi.
 - [ ] Comment ID va user ma'lumotlari saqlanadi.
 - [ ] Comment keyword campaign/product bilan bog'lanadi.
@@ -201,13 +201,13 @@ Ushbu hujjat platformani demo/skeleton holatidan real ishlaydigan production pro
 
 - [x] Keyword normalization unit testlari yozildi.
 - [x] Phone extraction unit testlari yozildi.
-- [ ] Crypto encrypt/decrypt testlari yozildi.
+- [x] Crypto encrypt/decrypt testlari yozildi.
 - [x] Auth register/login/middleware testlari yozildi.
 - [x] Tenant isolation testlari yozildi.
 - [x] Product va campaign CRUD integration testlari yozildi.
 - [ ] Duplicate keyword validation test qilindi.
 - [ ] Webhook verification testlari yozildi.
-- [ ] Webhook signature valid/invalid testlari yozildi.
+- [x] Webhook signature valid/invalid testlari yozildi.
 - [ ] Redis deduplication test qilindi.
 - [ ] Lead extraction test qilindi.
 - [ ] Telegram notification test qilindi.

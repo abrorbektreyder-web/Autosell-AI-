@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Literal
 
@@ -94,6 +95,27 @@ class TelegramSettings(BaseModel):
     chat_id: str | None = None
     notification_enabled: bool = False
     last_test_status: Literal["not_tested", "passed", "failed"] = "not_tested"
+
+
+InstagramTokenStatus = Literal["not_connected", "active", "invalid", "expired"]
+
+
+class InstagramSettings(BaseModel):
+    """Read-only view returned to the dashboard. The access token is never echoed back."""
+
+    instagram_account_id: str | None = None
+    instagram_username: str | None = None
+    page_id: str | None = None
+    token_status: InstagramTokenStatus = "not_connected"
+    connected_at: datetime | None = None
+
+
+class InstagramSettingsInput(BaseModel):
+    """Payload the owner submits from the Instagram Integration form."""
+
+    instagram_account_id: str
+    page_id: str | None = None
+    access_token: str
 
 
 class DashboardSummary(BaseModel):

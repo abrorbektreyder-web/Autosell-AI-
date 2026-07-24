@@ -34,6 +34,7 @@ import {
   api,
   Campaign as APICampaign,
   DashboardSummary,
+  InstagramSettings,
   Lead as APILead,
   Product as APIProduct,
   TelegramSettings,
@@ -447,6 +448,7 @@ export default function Home() {
   const [campaigns, setCampaigns] = useState<APICampaign[]>([]);
   const [leads, setLeads] = useState<APILead[]>([]);
   const [telegram, setTelegram] = useState<TelegramSettings | null>(null);
+  const [instagram, setInstagram] = useState<InstagramSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -466,18 +468,20 @@ export default function Home() {
       setLoading(true);
       setErrorMsg(null);
       try {
-        const [dashData, prodData, campData, leadData, tgData] = await Promise.all([
+        const [dashData, prodData, campData, leadData, tgData, igData] = await Promise.all([
           api.getDashboard().catch(() => null),
           api.getProducts().catch(() => []),
           api.getCampaigns().catch(() => []),
           api.getLeads().catch(() => []),
           api.getTelegramSettings().catch(() => null),
+          api.getInstagramSettings().catch(() => null),
         ]);
         setDashboard(dashData);
         setProducts(prodData);
         setCampaigns(campData);
         setLeads(leadData);
         setTelegram(tgData);
+        setInstagram(igData);
       } catch (err: any) {
         setErrorMsg(err.message || "Backend bilan ulanishda xatolik");
       } finally {
@@ -607,6 +611,29 @@ export default function Home() {
               alert("✅ Telegram sozlamalari saqlandi!");
               refreshAll();
             }}
+            instagram={instagram}
+            onTestInstagram={async () => {
+              try {
+                const res = await api.testInstagram();
+                alert(`✅ Instagram Ulanishi Ishlayapti!\n\nAkkaunt: @${res.instagram_username}`);
+                refreshAll();
+              } catch (e: any) {
+                alert(`❌ Instagram Testida Xatolik: ${e.message}`);
+              }
+            }}
+            onSaveInstagram={async (accountId, pageId, accessToken) => {
+              try {
+                await api.saveInstagramSettings({
+                  instagram_account_id: accountId,
+                  page_id: pageId || undefined,
+                  access_token: accessToken,
+                });
+                alert("✅ Instagram ulandi va tasdiqlandi!");
+                refreshAll();
+              } catch (e: any) {
+                alert(`❌ Instagram Ulanmadi: ${e.message}`);
+              }
+            }}
           />
         ) : (
           <AdminDashboard c={c} view={view as AdminView} businesses={filteredBusinesses} />
@@ -726,6 +753,7 @@ function OwnerDashboard({
   campaigns,
   leads,
   telegram,
+  instagram,
   loading,
   onAddProduct,
   onEditProduct,
@@ -735,6 +763,8 @@ function OwnerDashboard({
   onUpdateLeadStatus,
   onTestTelegram,
   onSaveTelegram,
+  onTestInstagram,
+  onSaveInstagram,
 }: {
   c: typeof copy[Lang];
   view: OwnerView;
@@ -743,6 +773,7 @@ function OwnerDashboard({
   campaigns: APICampaign[];
   leads: APILead[];
   telegram: TelegramSettings | null;
+  instagram: InstagramSettings | null;
   loading: boolean;
   onAddProduct: () => void;
   onEditProduct: (product: APIProduct) => void;
@@ -752,10 +783,23 @@ function OwnerDashboard({
   onUpdateLeadStatus: (id: string, status: string) => void;
   onTestTelegram: () => void;
   onSaveTelegram: (botUsername: string, chatId: string) => void;
+  onTestInstagram: () => void;
+  onSaveInstagram: (accountId: string, pageId: string, accessToken: string) => void;
 }) {
   if (view === "Leads") return <LeadsBoard c={c} leads={leads} onUpdateStatus={onUpdateLeadStatus} />;
   if (view === "Campaigns") return <CampaignsBoard c={c} campaigns={campaigns} products={products} onAdd={onAddCampaign} onDelete={onDeleteCampaign} />;
-  if (view === "Integrations") return <IntegrationsBoard c={c} telegram={telegram} onTestTelegram={onTestTelegram} onSaveTelegram={onSaveTelegram} />;
+  if (view === "Integrations")
+    return (
+      <IntegrationsBoard
+        c={c}
+        telegram={telegram}
+        onTestTelegram={onTestTelegram}
+        onSaveTelegram={onSaveTelegram}
+        instagram={instagram}
+        onTestInstagram={onTestInstagram}
+        onSaveInstagram={onSaveInstagram}
+      />
+    );
   if (view === "AI Rules") return <AIRulesBoard c={c} />;
   if (view === "Products") return <ProductsBoard c={c} products={products} onAdd={onAddProduct} onEdit={onEditProduct} onDelete={onDeleteProduct} />;
   if (view === "Conversations") return <ConversationsBoard c={c} leads={leads} />;
@@ -1113,14 +1157,26 @@ function IntegrationsBoard({
   telegram,
   onTestTelegram,
   onSaveTelegram,
+  instagram,
+  onTestInstagram,
+  onSaveInstagram,
 }: {
   c: typeof copy[Lang];
   telegram: TelegramSettings | null;
   onTestTelegram: () => void;
   onSaveTelegram: (botUsername: string, chatId: string) => void;
+  instagram: InstagramSettings | null;
+  onTestInstagram: () => void;
+  onSaveInstagram: (accountId: string, pageId: string, accessToken: string) => void;
 }) {
   const [botUsername, setBotUsername] = useState(telegram?.bot_username || "@autosell_demo_bot");
   const [chatId, setChatId] = useState(telegram?.chat_id || "-100123456789");
+
+  const [igAccountId, setIgAccountId] = useState(instagram?.instagram_account_id || "");
+  const [igPageId, setIgPageId] = useState(instagram?.page_id || "");
+  const [igAccessToken, setIgAccessToken] = useState("");
+  const [igSaving, setIgSaving] = useState(false);
+  const [igTesting, setIgTesting] = useState(false);
 
   useEffect(() => {
     if (telegram) {
@@ -1129,14 +1185,49 @@ function IntegrationsBoard({
     }
   }, [telegram]);
 
+  useEffect(() => {
+    if (instagram) {
+      if (instagram.instagram_account_id) setIgAccountId(instagram.instagram_account_id);
+      if (instagram.page_id) setIgPageId(instagram.page_id);
+    }
+  }, [instagram]);
+
+  const igStatus = instagram?.token_status || "not_connected";
+  const igStatusLabel: Record<string, string> = {
+    active: `✅ Ulangan — @${instagram?.instagram_username || ""}`,
+    invalid: "❌ Token yaroqsiz — qayta ulang",
+    expired: "⚠️ Token muddati tugagan — qayta ulang",
+    not_connected: "⚠️ Ulanmagan",
+  };
+  const igStatusColor: Record<string, string> = {
+    active: "#10b981",
+    invalid: "#ef4444",
+    expired: "#f59e0b",
+    not_connected: "#f59e0b",
+  };
+
   return (
     <section className="singleColumn">
       <div className="cardsGrid" style={{ marginBottom: "2rem" }}>
         <article className="panel integrationCard">
           <Instagram size={24} style={{ color: "#ec4899" }} />
           <strong>Instagram Business API</strong>
-          <span style={{ color: "#10b981" }}>✅ Webhook verification sozlangan</span>
-          <button className="ghostButton">Qayta ulanish</button>
+          <span style={{ color: igStatusColor[igStatus] }}>{igStatusLabel[igStatus]}</span>
+          <button
+            className="primaryButton"
+            disabled={igStatus === "not_connected" || igTesting}
+            onClick={async () => {
+              setIgTesting(true);
+              try {
+                await onTestInstagram();
+              } finally {
+                setIgTesting(false);
+              }
+            }}
+            style={{ padding: "4px 10px", fontSize: "0.85rem" }}
+          >
+            {igTesting ? "Tekshirilmoqda..." : "Ulanishni Tekshirish"}
+          </button>
         </article>
 
         <article className="panel integrationCard">
@@ -1150,6 +1241,68 @@ function IntegrationsBoard({
           </button>
         </article>
       </div>
+
+      <article className="panel wide" style={{ marginBottom: "2rem" }}>
+        <div className="panelHead">
+          <div>
+            <span className="sectionLabel">Instagram Integratsiya Sozlamalari</span>
+            <h3>Business Account ID va Access Token</h3>
+          </div>
+        </div>
+        <p style={{ color: "#9ca3af", fontSize: "0.85rem", maxWidth: "560px", marginTop: "0.5rem" }}>
+          Meta App Review hali tasdiqlanmagan bo'lsa ham, Graph API Explorer orqali olingan
+          Page Access Token bilan ulanishni sinab ko'rishingiz mumkin. Token bazada AES-256-GCM
+          bilan shifrlanib saqlanadi va hech qachon ekranda qayta ko'rsatilmaydi.
+        </p>
+        <div style={{ display: "grid", gap: "1rem", maxWidth: "500px", marginTop: "1rem" }}>
+          <label style={{ display: "grid", gap: "6px" }}>
+            <span style={{ fontSize: "0.9rem", color: "#9ca3af" }}>Instagram Business Account ID:</span>
+            <input
+              type="text"
+              value={igAccountId}
+              onChange={(e) => setIgAccountId(e.target.value)}
+              placeholder="17841400000000000"
+              style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #374151", background: "#1f2937", color: "#fff" }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: "6px" }}>
+            <span style={{ fontSize: "0.9rem", color: "#9ca3af" }}>Facebook Page ID (ixtiyoriy):</span>
+            <input
+              type="text"
+              value={igPageId}
+              onChange={(e) => setIgPageId(e.target.value)}
+              placeholder="102345678900000"
+              style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #374151", background: "#1f2937", color: "#fff" }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: "6px" }}>
+            <span style={{ fontSize: "0.9rem", color: "#9ca3af" }}>Page Access Token:</span>
+            <input
+              type="password"
+              value={igAccessToken}
+              onChange={(e) => setIgAccessToken(e.target.value)}
+              placeholder="EAAG..."
+              style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #374151", background: "#1f2937", color: "#fff" }}
+            />
+          </label>
+          <button
+            className="primaryButton"
+            disabled={igSaving || !igAccountId || !igAccessToken}
+            onClick={async () => {
+              setIgSaving(true);
+              try {
+                await onSaveInstagram(igAccountId, igPageId, igAccessToken);
+                setIgAccessToken("");
+              } finally {
+                setIgSaving(false);
+              }
+            }}
+            style={{ justifySelf: "start" }}
+          >
+            {igSaving ? "Saqlanmoqda..." : "Ulanishni Saqlash"}
+          </button>
+        </div>
+      </article>
 
       <article className="panel wide">
         <div className="panelHead">

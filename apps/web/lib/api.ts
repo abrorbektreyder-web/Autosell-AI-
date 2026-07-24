@@ -164,6 +164,20 @@ export type TelegramSettings = {
   last_test_status?: string;
 };
 
+export type InstagramSettings = {
+  instagram_account_id?: string;
+  instagram_username?: string;
+  page_id?: string;
+  token_status: "not_connected" | "active" | "invalid" | "expired";
+  connected_at?: string;
+};
+
+export type InstagramSettingsInput = {
+  instagram_account_id: string;
+  page_id?: string;
+  access_token: string;
+};
+
 export type Message = {
   id: string;
   conversation_id: string;
@@ -209,6 +223,12 @@ export const api = {
   saveTelegramSettings: (data: TelegramSettings) =>
     request<{ status: string }>("/integrations/telegram", { method: "POST", body: JSON.stringify(data) }),
   testTelegram: () => request<{ status: string; message_preview: string }>("/integrations/telegram/test", { method: "POST" }),
+
+  getInstagramSettings: () => request<InstagramSettings>("/integrations/instagram"),
+  saveInstagramSettings: (data: InstagramSettingsInput) =>
+    request<InstagramSettings>("/integrations/instagram", { method: "POST", body: JSON.stringify(data) }),
+  testInstagram: () => request<{ status: string; instagram_username?: string }>("/integrations/instagram/test", { method: "POST" }),
+  connectInstagram: () => request<{ status: string; oauth_url?: string; next?: string }>("/integrations/instagram/connect"),
 
   runTestWebhook: (commentText: string) =>
     request<{ status: string; campaign_id?: string; product_id?: string; private_reply_preview?: string; reason?: string }>(

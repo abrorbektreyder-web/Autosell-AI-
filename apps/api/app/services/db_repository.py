@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -10,6 +11,7 @@ from app.models import (
     Campaign,
     CampaignKeyword,
     Conversation,
+    InstagramAccount,
     Lead,
     Message,
     Product,
@@ -369,6 +371,69 @@ async def save_telegram_settings(
     await db.commit()
     await db.refresh(settings)
     return settings
+
+
+# INSTAGRAM ACCOUNT
+async def get_instagram_account(
+    db: AsyncSession, business_id: UUID
+) -> InstagramAccount | None:
+    result = await db.execute(
+        select(InstagramAccount).filter(InstagramAccount.business_id == business_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def save_instagram_account(
+    db: AsyncSession,
+    business_id: UUID,
+    instagram_account_id: str,
+    access_token_encrypted: str,
+    page_id: str | None = None,
+    instagram_username: str | None = None,
+    token_status: str = "active",
+) -> InstagramAccount:
+    account = await get_instagram_account(db, business_id)
+    now = datetime.now(timezone.utc)
+    if not account:
+        account = InstagramAccount(
+            business_id=business_id,
+            instagram_account_id=instagram_account_id,
+            instagram_username=instagram_username or instagram_account_id,
+            page_id=page_id,
+            access_token_encrypted=access_token_encrypted,
+            token_status=token_status,
+            connected_at=now,
+        )
+        db.add(account)
+    else:
+        account.instagram_account_id = instagram_account_id
+        account.page_id = page_id
+        account.access_token_encrypted = access_token_encrypted
+        account.token_status = token_status
+        account.connected_at = now
+        if instagram_username:
+            account.instagram_username = instagram_username
+
+    await db.commit()
+    await db.refresh(account)
+    return account
+
+
+async def update_instagram_token_status(
+    db: AsyncSession,
+    business_id: UUID,
+    token_status: str,
+    instagram_username: str | None = None,
+) -> InstagramAccount | None:
+    account = await get_instagram_account(db, business_id)
+    if not account:
+        return None
+    account.token_status = token_status
+    if instagram_username:
+        account.instagram_username = instagram_username
+    await db.commit()
+    await db.refresh(account)
+    return account
 
 
 # KEYWORD MATCHING

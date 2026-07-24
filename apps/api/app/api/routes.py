@@ -10,6 +10,8 @@ from app.schemas.domain import (
     Campaign,
     CampaignCreate,
     DashboardSummary,
+    InstagramSettings as InstagramSettingsSchema,
+    InstagramSettingsInput,
     InstagramWebhookEvent,
     Lead,
     Product,
@@ -23,6 +25,8 @@ from app.schemas.domain import (
 )
 from app.services import db_repository
 from app.services.ai_sales import build_first_reply
+from app.services.crypto import decrypt_secret, encrypt_secret
+from app.services.instagram import InstagramAPIError, verify_instagram_token, verify_webhook_signature
 from app.services.telegram import format_lead_notification
 
 router = APIRouter()
@@ -315,15 +319,119 @@ async def delete_campaign(
     return {"status": "inactive"}
 
 
-# INTEGRATIONS (OAuth Connect placeholders)
+# INSTAGRAM INTEGRATION
 @router.get("/integrations/instagram/connect")
 def instagram_connect() -> dict[str, str]:
-    return {"status": "pending", "next": "Redirect owner to Meta OAuth with instagram_manage_messages permissions."}
+    """Returns a real Meta OAuth dialog URL once META_APP_ID is configured.
+
+    Until Meta App Review grants instagram_manage_messages / instagram_manage_comments,
+    completing this flow will not be enough on its own — Meta will restrict the
+    permissions the token can request. The owner can use the manual token form
+    (POST /integrations/instagram) in the meantime with a Graph API Explorer token.
+    """
+    from app.core.config import settings
+
+    if not settings.meta_app_id:
+        return {
+            "status": "not_configured",
+            "next": "Set META_APP_ID / META_APP_SECRET in the API environment to enable OAuth connect.",
+        }
+
+    redirect_uri = f"{settings.api_base_url}/api/v1/integrations/instagram/callback"
+    scopes = "instagram_basic,instagram_manage_comments,instagram_manage_messages,pages_show_list"
+    oauth_url = (
+        "https://www.facebook.com/v19.0/dialog/oauth"
+        f"?client_id={settings.meta_app_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scopes}"
+        "&response_type=code"
+    )
+    return {"status": "pending", "oauth_url": oauth_url}
 
 
 @router.get("/integrations/instagram/callback")
-def instagram_callback() -> dict[str, str]:
-    return {"status": "received", "next": "Exchange code for long-lived token and encrypt before storage."}
+def instagram_callback(code: str | None = Query(default=None)) -> dict[str, str]:
+    if not code:
+        return {"status": "error", "next": "Meta did not return an authorization code."}
+    return {
+        "status": "received",
+        "next": "Exchange this code for a long-lived token, then submit it via POST /integrations/instagram.",
+    }
+
+
+@router.get("/integrations/instagram", response_model=InstagramSettingsSchema)
+async def get_instagram_settings(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> InstagramSettingsSchema:
+    account = await db_repository.get_instagram_account(db, current_user.business_id)
+    if not account:
+        return InstagramSettingsSchema()
+    return InstagramSettingsSchema(
+        instagram_account_id=account.instagram_account_id,
+        instagram_username=account.instagram_username,
+        page_id=account.page_id,
+        token_status=account.token_status,
+        connected_at=account.connected_at,
+    )
+
+
+@router.post("/integrations/instagram", response_model=InstagramSettingsSchema)
+async def save_instagram_settings(
+    payload: InstagramSettingsInput,
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> InstagramSettingsSchema:
+    """Verifies the account id + access token against the real Meta Graph API before saving.
+
+    The token is only ever persisted AES-256-GCM encrypted, and it is never
+    echoed back in any GET response.
+    """
+    try:
+        verified = await verify_instagram_token(payload.instagram_account_id, payload.access_token)
+    except InstagramAPIError as exc:
+        raise HTTPException(status_code=400, detail=f"Meta rejected this token: {exc.message}")
+
+    encrypted_token = encrypt_secret(payload.access_token)
+    account = await db_repository.save_instagram_account(
+        db,
+        current_user.business_id,
+        instagram_account_id=verified["instagram_account_id"],
+        access_token_encrypted=encrypted_token,
+        page_id=payload.page_id,
+        instagram_username=verified.get("instagram_username"),
+        token_status="active",
+    )
+    return InstagramSettingsSchema(
+        instagram_account_id=account.instagram_account_id,
+        instagram_username=account.instagram_username,
+        page_id=account.page_id,
+        token_status=account.token_status,
+        connected_at=account.connected_at,
+    )
+
+
+@router.post("/integrations/instagram/test")
+async def test_instagram(
+    db: AsyncSession = Depends(get_tenant_db),
+    current_user: DBUser = Depends(get_current_user),
+) -> dict[str, str]:
+    """Re-checks the saved token against the live Meta Graph API (mirrors the Telegram test button)."""
+    account = await db_repository.get_instagram_account(db, current_user.business_id)
+    if not account:
+        raise HTTPException(status_code=400, detail="Instagram is not connected yet")
+
+    access_token = decrypt_secret(account.access_token_encrypted)
+    try:
+        verified = await verify_instagram_token(account.instagram_account_id, access_token)
+    except InstagramAPIError as exc:
+        await db_repository.update_instagram_token_status(db, current_user.business_id, "invalid")
+        raise HTTPException(status_code=400, detail=f"Token check failed: {exc.message}")
+
+    await db_repository.update_instagram_token_status(
+        db, current_user.business_id, "active", instagram_username=verified.get("instagram_username")
+    )
+    return {"status": "passed", "instagram_username": verified.get("instagram_username") or ""}
 
 
 @router.get("/webhooks/instagram")
@@ -342,9 +450,17 @@ def verify_instagram_webhook(
 @router.post("/webhooks/instagram")
 async def receive_instagram_webhook(
     payload: InstagramWebhookEvent,
+    request: Request,
     db: AsyncSession = Depends(get_tenant_db),
     current_user: DBUser = Depends(get_current_user),
 ) -> dict[str, str]:
+    from app.core.config import settings
+
+    raw_body = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256")
+    if not verify_webhook_signature(raw_body, signature, settings.meta_webhook_secret):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
     campaign = await db_repository.find_campaign_by_keyword(
         db, current_user.business_id, payload.comment_text
     )
